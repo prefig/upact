@@ -1,0 +1,30 @@
+{
+	"name": "@prefig/upact",
+	"version": "0.1.0-draft",
+	"description": "upact — identity port: a typed architectural contract between a social application and any identity provider, with privacy minima as the translation rule.",
+	"license": "CC-BY-4.0",
+	"type": "module",
+	"main": "./src/types.ts",
+	"exports": {
+		".": "./src/types.ts"
+	},
+	"keywords": [
+		"identity",
+		"identity-port",
+		"anti-corruption-layer",
+		"ports-and-adapters",
+		"privacy-by-design",
+		"minimum-disclosure",
+		"ulysses-pact",
+		"open-social-awards"
+	],
+	"author": "Theodore Evans (brave.berlin) and upact contributors",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/prefig/upact"
+	},
+	"devDependencies": {
+		"@types/node": "^20.0.0",
+		"typescript": "^5.0.0"
+	}
+}
