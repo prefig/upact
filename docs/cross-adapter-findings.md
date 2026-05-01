@@ -87,7 +87,24 @@ If an application later wants email for some substrate-specific use, it imports 
 
 **The principle.** The OIDC adapter's scope request policy is one of the most concrete expressions of the binding posture: what scopes the adapter requests determines what claims it could surface. Requesting less is a structural commitment that surfacing more becomes architecturally costly.
 
-**Classification.** Adapter-author guidance for any future `@prefig/upact-oidc` package; spec-relevant note in conformance statement template (§10) recommending that OIDC-based adapters declare their scope policy.
+**Classification.** Implemented: `@prefig/upact-oidc` v0.1.0 enforces this at construction time — `email`, `phone`, `address`, and `groups` scopes throw immediately. Default scopes: `['openid', 'offline_access']`. Spec-relevant note in conformance statement template (§10) recommending that OIDC-based adapters declare their scope policy.
+
+## G2. OIDC error classification — substrate error strings to `AuthErrorCode`
+
+**Observation (from `@prefig/upact-oidc` v0.1.0 implementation).** OIDC error strings are not cleanly orthogonal to upact's six-member error vocabulary. The mapping that shipped:
+
+| Substrate error pattern | `AuthErrorCode` |
+|---|---|
+| `invalid_grant`, `access_denied`, `interaction_required` | `credential_rejected` |
+| `invalid_token`, `invalid_client`, `invalid_request` | `credential_invalid` |
+| `server_error`, network/fetch/ECONNREFUSED | `substrate_unavailable` |
+| `slow_down`, rate-limit, 429 | `rate_limited` |
+| Discovery failure, IDP not found | `identity_unavailable` |
+| Any other error | `auth_failed` |
+
+Key tension: `invalid_grant` (refresh token expired) maps to `credential_rejected`, not `credential_invalid`. The distinction: `credential_rejected` means the credential was understood but refused (expired or revoked grant), while `credential_invalid` means it was malformed or unrecognisable. This matches SPEC §6.5 intent.
+
+**Classification.** Adapter-author guidance for any OIDC-shaped adapter. The mapping table is in `@prefig/upact-oidc/CONFORMANCE.md`.
 
 ## Sources
 

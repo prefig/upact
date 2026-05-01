@@ -1,6 +1,6 @@
 # Adapter shape sketches
 
-> **Status (v0.1):** sketches of substrates against the upact `IdentityPort` contract. **Additional substrate sketches land alongside their shipped adapter, not before** — speculative substrates from earlier drafts (Convene, Reticulum, fediverse-DID-based) were removed by the audit (CONTRIBUTING.md): no shipped adapter, no concrete consumer. Sketches return when an adapter is genuinely on the way.
+> **Status (v0.1.1):** sketches of substrates against the upact `IdentityPort` contract. **Additional substrate sketches land alongside their shipped adapter, not before** — speculative substrates from earlier drafts (Convene, Reticulum, fediverse-DID-based) were removed by the audit (CONTRIBUTING.md): no shipped adapter, no concrete consumer. Sketches return when an adapter is genuinely on the way.
 
 ## Why this document exists
 
@@ -13,22 +13,24 @@ The check is type-only. We sketch the *signatures* each adapter exposes, not the
 - **Pre-conforming substrates** — e.g. SimpleX (no central directory; anonymous unidirectional queues). The substrate's natural shape is already aligned with upact's MUST-NOTs. Adapters are mostly *type translation*, not architectural enforcement — thin packages.
 - **Enforcement substrates** — e.g. Supabase Auth, OIDC providers (Phase C). The substrate exposes far more than upact permits; the adapter does the work of stripping, hiding, and capability-bounding — thicker packages.
 
-`@prefig/upact-supabase` is the worked example of the *enforcement* case: Supabase's `User` shape exposes email, phone, JWT claims, `app_metadata`, `user_metadata`, all of which the adapter strips or hides. `@prefig/upact-simplex` is the worked example of the *pre-conforming* case: the SimpleX daemon's local profile carries `localDisplayName`, `agentUserId` (UUID), and a few status flags; the adapter hashes the UUID, sanitises the display name, and that's roughly it.
+`@prefig/upact-supabase` is the worked example of the *enforcement* case: Supabase's `User` shape exposes email, phone, JWT claims, `app_metadata`, `user_metadata`, all of which the adapter strips or hides. `@prefig/upact-simplex` is the worked example of the *pre-conforming* case: the SimpleX daemon's local profile carries `localDisplayName`, `agentUserId` (UUID), and a few status flags; the adapter hashes the UUID, sanitises the display name, and that's roughly it. `@prefig/upact-oidc` is the enforcement case for any OIDC-compliant IDP.
 
-## Substrates compared (v0.1 shipped reality)
+## Substrates compared (v0.1.1 shipped reality)
 
-| Property | Supabase | SimpleX |
-|---|---|---|
-| Substrate-conformance camp | Enforcement | Pre-conforming |
-| Identity-`id` stability | Account lifetime (years) | Application-scoped, derived from local profile UUID |
-| Substrate "user object" | A `User` record in `auth.users` | A local SimpleX profile (no server-side record) |
-| Adapter binding shape | Per-request: `event.locals.supabase` is cookie-bound at hook time | Per-instance: long-lived daemon connection, single-tenant per process |
-| `currentUpactor` synchrony | Cookies bound to request — fast local read | Daemon round-trip (no remote server, but local IPC) |
-| Capabilities (v0.1) | `{ email, recovery }` for users with email; `{ recovery }` otherwise | `[]` (substrate affords messaging and p2p_matching, but no v0.1 consumer surfaces them through the port — see SPEC §5 audit) |
-| `display_hint` source | `user.user_metadata.display_name` if non-empty after trim | `User.localDisplayName` if non-empty after trim AND not email-shaped (per §4.2 MUST NOT) |
-| Recovery semantics | Email-based (Supabase Auth) | None (start a new profile) |
-| Threat model | Casual coordination | Anonymous / pseudonymous |
-| Adapter thickness | Thick (lots to strip) | Thin (mostly type translation) |
+| Property | Supabase | SimpleX | OIDC |
+|---|---|---|---|
+| Substrate-conformance camp | Enforcement | Pre-conforming | Enforcement |
+| Identity-`id` stability | Account lifetime (years) | Application-scoped, derived from local profile UUID | Stable within issuer: SHA-256(`sub@iss`)[:32] |
+| Substrate "user object" | A `User` record in `auth.users` | A local SimpleX profile (no server-side record) | ID token claims (sub, iss, exp, preferred_username, name) |
+| Adapter binding shape | Per-request: `event.locals.supabase` is cookie-bound at hook time | Per-instance: long-lived daemon connection, single-tenant per process | Per-request: `event.cookies` (CookieJar) + inbound Request |
+| `currentUpactor` synchrony | Cookies bound to request — fast local read | Daemon round-trip (no remote server, but local IPC) | Cookie read + optional refresh token grant |
+| Capabilities (v0.1.1) | `{ email, recovery }` for users with email; `{ recovery }` otherwise | `[]` | `[]` (IDP-agnostic; application layer assigns capabilities) |
+| `display_hint` source | `user.user_metadata.display_name` if non-empty after trim | `User.localDisplayName` if non-empty after trim AND not email-shaped | `preferred_username` then `name`; email-shaped values rejected |
+| `lifecycle` | not populated (v0.1.x) | not populated (v0.1.x) | `{ expires_at: new Date(exp * 1000), renewable: 'reauth' }` |
+| `provenance` | not populated (v0.1.x) | not populated (v0.1.x) | `{ substrate: 'oidc', instance: issuer }` |
+| Recovery semantics | Email-based (Supabase Auth) | None (start a new profile) | IDP-managed refresh token rotation |
+| Threat model | Casual coordination | Anonymous / pseudonymous | Standard OIDC delegate trust |
+| Adapter thickness | Thick (lots to strip) | Thin (mostly type translation) | Thick (scope enforcement, token storage, refresh) |
 
 ## Adapter constructor signatures
 
@@ -42,6 +44,15 @@ export function createSupabaseAdapter(supabase: SupabaseClient): IdentityPort;
 // SimpleX: per-instance, long-lived daemon connection.
 // Substrate state held in closure scope.
 export function createSimpleXAdapter(client: SimpleXClient): IdentityPort;
+
+// OIDC: per-request CookieJar (SvelteKit event.cookies or equivalent).
+// Substrate tokens stored in HMAC-SHA256 signed session cookie.
+// Substrate state (tokens, config) held in closure scope.
+export function createOidcAdapter(
+  config: OidcConfig,
+  cookies: CookieJar,
+  _client?: OidcClient,
+): IdentityPort & OidcAdapterExtensions;
 ```
 
 **Generalisation:** there is no single shape of "substrate client." Each adapter takes whatever its substrate's read interface is. The Supabase adapter's request-bound client is one substrate's answer, not a precedent for others.
@@ -70,16 +81,15 @@ Both adapters hold their substrate client in closure scope. `(adapter as any).cl
 
 The factory pattern is the operational form of §7.5: there is no instance property to reach for. Both adapters' tests assert this directly.
 
-## Forward-looking sketches (Phase C)
+## OIDC adapter specifics (v0.1.1 shipped)
 
-`@prefig/upact-oidc` is planned for a follow-up session (see `docs/plans/2026-05-01-003-feat-upact-oidc-adapter-plan.md`). When it ships:
+The IDP-delegation pattern (Path B): the OIDC adapter's substrate is "any OIDC-compliant IDP" — Authentik, Keycloak, ZITADEL, or Dex (local dev rig). Mastodon, GitHub, Google, Auth0 etc. become *upstream* OAuth providers federated through the IDP, not direct upact substrates.
 
-- Constructor takes `OidcConfig` (discovery URL, client ID/secret, scopes, redirect URI) plus a per-request cookie jar and the inbound `Request`.
-- Substrate state held in closure scope, same shape as the v0.1 adapters.
-- Brings back `lifecycle: { expires_at }` to the `Upactor` type (concrete consumer: JWT `exp` claim).
-- Brings back `provenance: { substrate: 'oidc', instance: <issuer URL> }` (concrete consumer: cross-IDP discrimination when applications aggregate).
-- Capability declaration audit: starts at `[]`; capabilities land via SPEC §5.2 extension when concrete consumers surface.
+Key decisions:
+- Scope policy enforces `email`/`phone`/`address`/`groups` exclusion at construction time (throws immediately).
+- `id` = SHA-256(`sub@iss`)[:32] — deterministic, not reversible, stable across refresh rotations.
+- Tokens stored in HMAC-SHA256 signed session cookie; never on the `Session` or `Upactor`.
+- `issueRenewal` is OPTIONAL (Decision 9): returns `null` if no refresh token present.
+- Two out-of-port extensions: `buildAuthRedirect()` (init phase) and `buildLogoutRedirect()` (logout).
 
-The IDP-delegation pattern (Path B) means the OIDC adapter's substrate is "any OIDC-compliant IDP" — Authentik, Keycloak, ZITADEL, or Dex (used as the local dev rig). Mastodon, GitHub, Google, Auth0 etc. become *upstream* OAuth providers federated through the IDP, not direct upact substrates.
-
-When the OIDC adapter ships, this document expands with its column. Convene, Reticulum, and fediverse-DID-based sketches return only if and when shipped adapters arrive — per the audit, sketches don't precede the shipped adapter.
+Convene, Reticulum, and fediverse-DID-based sketches return only if and when shipped adapters arrive — per the audit, sketches don't precede the shipped adapter.

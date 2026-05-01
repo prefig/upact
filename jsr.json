@@ -1,0 +1,9 @@
+{
+	"name": "@prefig/upact",
+	"version": "0.1.0",
+	"license": "(CC-BY-4.0 AND Apache-2.0)",
+	"exports": {
+		".": "./src/index.ts",
+		"./internal": "./src/internal.ts"
+	}
+}

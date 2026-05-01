@@ -22,17 +22,29 @@
 export type Capability = 'email' | 'recovery';
 
 /**
+ * Session lifecycle metadata. Surfaced when the substrate provides an
+ * explicit TTL (OIDC JWT `exp` claim, session-cookie `Max-Age`). Providers
+ * that have no intrinsic expiry omit this field. See SPEC.md §8.
+ */
+export interface IdentityLifecycle {
+	/** Absolute expiry time. Omitted for substrates with no intrinsic TTL. */
+	expires_at?: Date;
+	/**
+	 * How the identity can be renewed once `expires_at` is reached.
+	 * - `'reauth'` — full credential exchange required (OIDC, password re-entry).
+	 * - `'represence'` — presence renewal suffices (P2P presence-based substrates).
+	 * - `'never'` — identity does not expire.
+	 */
+	renewable: 'reauth' | 'represence' | 'never';
+}
+
+/**
  * The application's view of "who is this." Opaque, capability-negotiated,
  * privacy-bounded by construction.
  *
  * No email, phone, legal name, IP, or device identifier appears here.
  * Providers MUST strip such fields from their substrate before returning an
  * Upactor. See SPEC.md §7 for the privacy minima.
- *
- * The shape is intentionally minimal (three fields) for v0.1 per the
- * contributor audit (CONTRIBUTING.md): pre-emptive features (lifecycle,
- * provenance) are deferred until a concrete consumer surfaces. Phase C
- * (the OIDC adapter) brings them back when the consumer arrives.
  */
 export interface Upactor {
 	/** Opaque, stable for the lifetime of this identity. Compare by equality only. */
@@ -40,6 +52,19 @@ export interface Upactor {
 	/** Best-effort display string. Not unique, not a contact identifier. */
 	display_hint?: string;
 	capabilities: ReadonlySet<Capability>;
+	/**
+	 * Session lifecycle metadata. Present when the substrate has an explicit TTL
+	 * (e.g. OIDC JWT `exp`). Omitted for substrates with no intrinsic expiry.
+	 * See SPEC.md §8 and IdentityLifecycle.
+	 */
+	lifecycle?: IdentityLifecycle;
+	/**
+	 * Cross-substrate provenance. Distinguishes identity sources in multi-IDP
+	 * deployments. `substrate` is a short identifier ('oidc', 'supabase',
+	 * 'simplex'); `instance` is the issuer URL or equivalent.
+	 * Decision 6 — SPEC.md §4.4.
+	 */
+	provenance?: { substrate: string; instance?: string };
 }
 
 /**
