@@ -67,7 +67,7 @@ Five tiers:
 
 The trailer is advisory, not mechanical. Its purpose is honest attribution, not compliance theatre. Use the tier that most accurately describes the commit.
 
-Normative paths (`SPEC.md`, `src/types.ts`, capability vocabulary) that carry `autonomous` or `authored` tiers are permitted at v0.1 — the authorship policy is relaxed because the development timeline cannot support a full human revision pass before the OSA submission deadline. This policy is revisited before v1.0.
+Normative paths (`SPEC.md`, `src/types.ts`, capability vocabulary) that carry `autonomous` or `authored` tiers are permitted at v0.1. This posture is revisited before v1.0.
 
 ## Spec versioning and stability
 

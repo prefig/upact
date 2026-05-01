@@ -4,6 +4,18 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ---
 
+## [0.1.1] — 2026-05-01
+
+Additive spec amendments: lifecycle and provenance on `Upactor`. Ships `@prefig/upact-oidc` as the third reference adapter.
+
+### Added
+
+- `IdentityLifecycle` type: `{ expires_at?: Date; renewable: 'reauth' | 'represence' | 'never' }`. Optional on `Upactor.lifecycle`; the OIDC adapter populates it from JWT `exp`. Non-OIDC adapters may omit it.
+- `Upactor.provenance?: { substrate: string; instance?: string }` — cross-IDP disambiguation; the OIDC adapter populates it from the OIDC issuer URL. Optional; non-OIDC adapters may omit it.
+- `@prefig/upact-oidc`: OIDC reference adapter. PKCE (S256), signed-cookie state, transparent session refresh, scope policy that structurally excludes `email` / `phone` / `address` / `groups` at construction time.
+
+---
+
 ## [0.1.0] — 2026-05-01
 
 First public draft. Establishes the `Upactor` primitive, the `IdentityPort` contract, the `AuthError` vocabulary, and the Session opacity guarantee. Ships with two reference adapters (`@prefig/upact-supabase`, `@prefig/upact-simplex`) and the five-test contributor audit.
@@ -29,7 +41,5 @@ First public draft. Establishes the `Upactor` primitive, the `IdentityPort` cont
 
 ### Removed (from earlier drafts)
 
-- `IdentityLifecycle` and `IdentityDecayAware` — no concrete consumer; deferred to §12 (D-SPEC-4 / F6).
-- `provenance` field — no concrete consumer; deferred to §12 (D6).
 - Speculative capability vocabulary entries (`messaging`, `p2p_matching`, `presence`) — no concrete consumer per audit; SimpleX ships with `[]`.
 - Convene, Reticulum, and fediverse-DID adapter sketches — no shipped adapter, no concrete consumer; return to `docs/adapter-shapes.md` when their adapters ship.

@@ -25,6 +25,36 @@ The values commitment is what motivates platforms to consider signing the upact 
 
 The values-posture commitment is what motivates *some* adopters; these ergonomics reward every adopter who honours the contract.
 
+## Usage
+
+```typescript
+import type { IdentityPort } from '@prefig/upact';
+import { SubstrateUnavailableError } from '@prefig/upact';
+
+// authenticate returns Session | AuthError — discriminate on 'code':
+const result = await port.authenticate({ kind: 'password', email, password });
+if ('code' in result) {
+  switch (result.code) {
+    case 'credential_rejected': /* wrong password */ break;
+    case 'rate_limited':        /* back off */ break;
+    default:                    /* substrate_unavailable, auth_failed */ break;
+  }
+  return;
+}
+// result is an opaque Session
+
+// currentUpactor returns null when logged out; throws SubstrateUnavailableError when the substrate is unreachable:
+try {
+  const actor = await port.currentUpactor(request);
+  if (!actor) { /* not logged in */ return; }
+  if (actor.capabilities.has('email')) { /* capability gated */ }
+} catch (err) {
+  if (err instanceof SubstrateUnavailableError) { /* show maintenance page */ }
+}
+```
+
+`authenticate` communicates auth failures as return values (`AuthError`) — it never throws for wrong passwords or rate limits. `currentUpactor` and `issueRenewal` throw `SubstrateUnavailableError` for substrate outages — they never return error values. The asymmetry is deliberate: auth failures are expected control-flow; substrate outages are exceptional conditions.
+
 ## Adapters
 
 | Package | Substrate | Camp | Status |
