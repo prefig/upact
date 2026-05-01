@@ -2,8 +2,8 @@
 /**
  * Typed errors that adapters MAY throw at port boundaries.
  *
- * SPEC.md §6.2 gives `currentIdentity` the return type
- * `Promise<UserIdentity | null>`, where `null` means "no authenticated
+ * SPEC.md §6.2 gives `currentUpactor` the return type
+ * `Promise<Upactor | null>`, where `null` means "no authenticated
  * user." A substrate outage is a categorically different condition —
  * the substrate cannot answer the question — and collapsing it into the
  * `null` channel forces every caller to choose between misclassifying
