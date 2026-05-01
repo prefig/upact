@@ -11,12 +11,12 @@
 
 export type {
 	Capability,
-	UserIdentity,
-	IdentityLifecycle,
+	Upactor,
+	UserIdentity, // deprecated alias for v0.1.x compat; removed in v0.2
 	Session,
 	AuthError,
+	AuthErrorCode,
 	IdentityPort,
-	IdentityDecayAware,
 } from './types.js';
 
 export { createSession } from './runtime.js';
