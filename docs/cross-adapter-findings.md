@@ -108,6 +108,5 @@ Key tension: `invalid_grant` (refresh token expired) maps to `credential_rejecte
 
 ## Sources
 
-- **Stale plan (deleted 2026-05-01 after Path B commitment):** `~/prefig/upact-mastodon/docs/plans/2026-05-01-001-feat-upact-mastodon-adapter-plan.md` — the original direct-Mastodon-adapter plan that surfaced these findings during planning. Findings extracted here before deletion.
 - **Conversation arc:** 2026-05-01 spec design discussion (covering the move from direct-adapter to IDP-delegation, the self-binding posture, and the cross-substrate spec stress test).
-- **Cross-adapter ce:review run artifact:** `.context/compound-engineering/ce-review/20260501-102919-fc3bfd2a/summary.md` — the original ce:review across upact + upact-supabase + upact-simplex that opened Decisions 3, 4, 6, 7, 8, 9.
+- **Cross-adapter ce:review:** May 2026 review across upact + upact-supabase + upact-simplex that opened Decisions 3, 4, 6, 7, 8, 9.
