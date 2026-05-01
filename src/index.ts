@@ -20,3 +20,4 @@ export type {
 } from './types.js';
 
 export { createSession } from './runtime.js';
+export { SubstrateUnavailableError } from './errors.js';
