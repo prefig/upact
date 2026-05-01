@@ -2,11 +2,12 @@
 	"name": "@prefig/upact",
 	"version": "0.1.0-draft",
 	"description": "upact — identity port: a typed architectural contract between a social application and any identity provider, with privacy minima as the translation rule.",
-	"license": "CC-BY-4.0",
+	"license": "(CC-BY-4.0 AND Apache-2.0)",
 	"type": "module",
-	"main": "./src/types.ts",
+	"main": "./src/index.ts",
 	"exports": {
-		".": "./src/types.ts"
+		".": "./src/index.ts",
+		"./internal": "./src/internal.ts"
 	},
 	"keywords": [
 		"identity",
@@ -23,8 +24,14 @@
 		"type": "git",
 		"url": "https://github.com/prefig/upact"
 	},
+	"scripts": {
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"typecheck": "tsc --noEmit"
+	},
 	"devDependencies": {
 		"@types/node": "^20.0.0",
-		"typescript": "^5.0.0"
+		"typescript": "^5.0.0",
+		"vitest": "^1.0.0"
 	}
 }

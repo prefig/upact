@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * upact — identity port v0.1-draft
  *
  * Reference TypeScript types for the identity port specification.
  * See SPEC.md in this repo for the normative document.
- *
- * License: CC BY 4.0
  */
 
 /**
