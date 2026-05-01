@@ -1,8 +1,10 @@
 # upact — Identity Port Specification
 
-**Version:** 0.1-draft
-**Status:** Working draft. Not yet stable.
+**Version:** 0.1
+**Status:** Working draft. Public release. Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
 **License:** CC BY 4.0
+
+> **A note on authorship.** v0.1 of this specification was AI-co-authored under the project's `AI-Involvement` trailer convention (see `CONTRIBUTING.md`). The transparency posture is preserved as disclosure rather than authorship-purity. Every commit touching normative content carries the trailer; readers can audit the contribution lineage in `git log`. Future revisions may include a maintainer-only re-authoring pass; for now the disclosure trail is the binding mechanism. We welcome critique — if our v0.1 spec text reads as AI-slop, tell us; we'll revise.
 
 ---
 
@@ -14,12 +16,14 @@ The port is intended to be small enough that any reasonable identity substrate �
 
 This is the dual of selective-disclosure self-sovereign identity. SSI puts disclosure control at the *user* side: the application asks for what it wants, the user permits or denies. This specification puts a hard bound at the *application* side: the application architecturally cannot ask for what is outside the port, even if the user would permit it.
 
+**The port is a self-binding contract.** The privacy minima at the port are not features the substrate happens to hide. They are commitments the application has structurally given up the ability to violate. The architectural cost of breaking the contract later is what makes the commitment durable: an application built on upact cannot quietly pivot to surveillance-driven, data-retention-driven, or third-party-sharing-shaped revenue without ripping out foundations.
+
 ## §2. Terminology
 
 - **Application** — software that consumes identities to serve users.
-- **Provider** — software that issues, attests, renews, and invalidates identities.
-- **Substrate** — the implementation technology a provider is built on (database, OIDC server, blockchain, etc.).
-- **Identity** — a `UserIdentity` value as defined in §4. The application's view of "who is this."
+- **Provider** (also: *adapter*) — software that issues, attests, renews, and invalidates identities. Implements the `IdentityPort` interface (§6).
+- **Substrate** — the implementation technology a provider is built on (database, OIDC server, IDP-brokered upstream, peer-to-peer messaging, etc.).
+- **Upactor** — a `Upactor` value as defined in §4. The application's view of "who is this." (Renamed from `UserIdentity` in v0.1; deprecated alias `UserIdentity` remains for v0.1.x compatibility.)
 - **Session** — provider-defined credential exchange artefact; opaque to the application.
 - **Capability** — a self-described provider feature (§5).
 
@@ -27,43 +31,39 @@ The key words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are to be interpreted 
 
 ## §3. Conformance
 
-A **provider** conforms to this specification when it:
+A **provider** (adapter package) conforms to this specification when it:
 
 - exposes the four operations defined in §6,
-- returns `UserIdentity` values matching §4,
-- self-describes capabilities using the vocabulary in §5,
-- honours every MUST NOT clause in §7.
+- returns `Upactor` values matching §4,
+- self-declares capabilities using the vocabulary in §5,
+- honours every MUST NOT clause in §7,
+- holds substrate state out of public reflection per §7.5.
 
 An **application** conforms to this specification when it:
 
-- consumes only `UserIdentity` values returned by a conforming provider,
+- consumes only `Upactor` values returned by a conforming provider,
 - branches behaviour only on capability presence (§5), never on substrate identity, provider type, or out-of-band knowledge of the provider,
-- honours the data-model contract in §9.
+- does not reach past the port through reflection on adapter instances or sessions.
 
 Conformance is to a specific version of the spec.
 
-## §4. Identity
+## §4. Upactor
 
-A `UserIdentity` is a value of the following shape:
+A `Upactor` is a value of the following shape:
 
 ```ts
-interface UserIdentity {
+interface Upactor {
   id: string;
   display_hint?: string;
-  lifecycle: IdentityLifecycle;
   capabilities: ReadonlySet<Capability>;
-}
-
-interface IdentityLifecycle {
-  issued_at: string;          // ISO 8601
-  expires_at?: string;        // ISO 8601
-  renewable: 'reauth' | 'represence' | 'never';
 }
 ```
 
+Three fields. The shape is intentionally minimal for v0.1 per the contributor audit (CONTRIBUTING.md). Pre-emptive features (substrate provenance, lifecycle, transition-event metadata) were considered and deferred until a concrete consumer surfaces. See §12 for the deferred-decisions register.
+
 ### §4.1 `id`
 
-An opaque identifier, stable for the lifetime of this identity. The identity MAY be re-issued with a new `id` if the lifecycle's `renewable` mode produces a new identity (e.g. a presence-renewed provider may issue a new `id` at each renewal).
+An opaque identifier, stable for the lifetime of this identity. The identity MAY be re-issued with a new `id` if the provider's substrate produces one (e.g. a presence-renewed substrate may issue a new `id` at each renewal); applications branch on equality only.
 
 The `id` MUST be opaque to the application. Applications MUST NOT parse, decompose, or attribute meaning to the `id` beyond equality comparison.
 
@@ -73,19 +73,7 @@ An optional, best-effort string the application MAY render to other users when n
 
 Display hints MUST NOT be email addresses, phone numbers, or other contact identifiers. They are display-only.
 
-### §4.3 `lifecycle`
-
-`issued_at` MUST be the time at which this `id` first became valid.
-
-`expires_at`, when present, indicates the time at which this identity will cease to be valid. Applications MUST treat any data tied to the identity (per §9) according to the lifecycle.
-
-`renewable` indicates how the identity may be refreshed:
-
-- `'reauth'` — by re-presenting credentials (e.g. password, OIDC reauth)
-- `'represence'` — by participating in a fresh presence event (e.g. a Convene encounter)
-- `'never'` — the identity is one-shot; once expired it cannot be reissued with the same `id`
-
-### §4.4 `capabilities`
+### §4.3 `capabilities`
 
 See §5.
 
@@ -98,18 +86,17 @@ Capabilities are self-described provider features. The application uses capabili
 | Capability | Meaning |
 |-----------|---------|
 | `email` | The provider can deliver email to this identity. |
-| `push` | The provider can deliver web push notifications to this identity. |
-| `webauthn` | The provider can verify WebAuthn assertions for this identity. |
-| `presence_renewal` | The identity is renewable through a fresh presence event. |
-| `threshold_attestation` | The identity's lifecycle is attested across non-colluding operators. |
-| `p2p_matching` | The provider supports matching without a central registry. |
 | `recovery` | The provider supports identity recovery flows. |
+
+**The vocabulary is intentionally minimal.** The audit (see CONTRIBUTING.md) found these two are the capabilities that have shipped consumers — the Supabase reference adapter declares them; dyad's UI gating consumes them for password-reset and invitation flows. Capabilities present in earlier drafts (`messaging`, `p2p_matching`, `presence_renewal`, `threshold_attestation`, `push`, `webauthn`) were not declared by any shipped consumer in this version and were deferred. Adapter authors do not pre-emptively expand the vocabulary; new capabilities land via §5.2 extension when concrete consumers surface.
+
+This minimum-viable discipline is itself part of the binding mechanism. A capability vocabulary that grew speculatively would dilute the contract: applications would gate on capabilities that no substrate genuinely supports, providers would declare capabilities to look feature-rich, and the whole signal would erode. Keeping the vocabulary small and concrete-need-driven keeps the binding genuine.
 
 ### §5.2 Capability extension
 
 Providers MAY self-declare capabilities outside the core vocabulary. Applications SHOULD treat unknown capabilities as absent.
 
-A capability registry is maintained out-of-band. Convergence happens through use; capabilities that see broad implementation across providers move into a future revision of the core vocabulary.
+A capability registry is maintained out-of-band. New capabilities move into a future revision of the core vocabulary on demonstrated implementation by at least two independent providers and demonstrated consumption by at least one application. Until those conditions are met, the capability remains adapter-local.
 
 ### §5.3 Capability access
 
@@ -122,33 +109,58 @@ A provider implements the following four operations:
 ```ts
 interface IdentityPort {
   authenticate(credential: unknown): Promise<Session | AuthError>;
-  currentIdentity(request: Request): Promise<UserIdentity | null>;
+  currentUpactor(request: Request): Promise<Upactor | null>;
   invalidate(session: Session): Promise<void>;
-  issueRenewal(identity: UserIdentity, evidence: unknown): Promise<UserIdentity | null>;
+  issueRenewal(identity: Upactor, evidence: unknown): Promise<Upactor | null>;
 }
 ```
 
+**Multi-step authentication flows are out of scope for the port.** When a substrate is OIDC-shaped (Authentik, Keycloak, ZITADEL, Mastodon-as-broker, GitHub-as-broker, etc.), the OAuth dance happens at a substrate-side IDP; the upact adapter consumes terminal OIDC tokens via the existing one-shot `authenticate` shape. Substrates with presentation-ready credentials (load-profile, single-call password) use `authenticate` directly. The port stays one-shot; flow-shaped complexity moves to a layer (IDP) better-equipped to handle it.
+
 ### §6.1 `authenticate(credential)`
 
-Establishes a session from a provider-shaped credential (password + email, OIDC code, presence-event proof, threshold attestation, etc.). Returns a `Session` on success or an `AuthError` on failure. The shape of `credential` is provider-defined; the application either knows the shape because it is wired to that provider, or accepts the provider's UI to gather it.
+Establishes a session from a provider-shaped credential (password + email, OIDC tokenset, presence-event proof, threshold attestation, etc.). Returns a `Session` on success or an `AuthError` (§6.5) on failure. The shape of `credential` is provider-defined; the application either knows the shape because it is wired to that provider, or accepts the provider's UI to gather it.
 
-The returned `Session` is opaque to the application; the application uses `currentIdentity` to obtain the `UserIdentity`.
+The returned `Session` is opaque to the application; the application uses `currentUpactor` to obtain the `Upactor`.
 
-### §6.2 `currentIdentity(request)`
+### §6.2 `currentUpactor(request)`
 
-Returns the `UserIdentity` currently associated with a request, or `null` if none.
+Returns the `Upactor` currently associated with a request, or `null` if no authenticated user.
 
-The provider extracts the session credential from the request (cookie, header, etc.) according to its own conventions, validates it, and returns a fresh `UserIdentity` value.
+The provider extracts the session credential from the request (cookie, header, captured tokenset, daemon state) according to its own conventions, validates it, and returns a fresh `Upactor` value.
+
+A provider MAY throw a typed error (e.g. `SubstrateUnavailableError` exported by `@prefig/upact`) when the substrate is unreachable, to distinguish "no authenticated user" (logged-out) from "substrate cannot answer" (infrastructure outage). Applications that don't care let the error propagate; applications that want to render an outage-specific UI catch the type. The `null` channel is reserved for "logged-out."
 
 ### §6.3 `invalidate(session)`
 
-Invalidates the session. Subsequent calls to `currentIdentity` with a request bearing the same session MUST return `null`. The provider MAY cascade invalidation to associated identities.
+Invalidates the session. Subsequent calls to `currentUpactor` with a request bearing the same session MUST return `null`. The provider MAY cascade invalidation to associated identities.
 
 ### §6.4 `issueRenewal(identity, evidence)`
 
-Renews an existing identity, returning either a renewed identity (which MAY have a new `id`) or `null` if renewal is not possible. The shape of `evidence` is per-provider — for `'represence'` providers it is a fresh presence event; for `'reauth'` it is fresh credentials.
+Renews an existing identity, returning either a renewed identity (which MAY have a new `id`) or `null` if renewal is not possible. The shape of `evidence` is per-provider — for OIDC providers it is a refresh-token grant; for password-reauth substrates it is fresh credentials.
 
-If the renewed identity has a new `id`, the application MUST treat data tied to the previous `id` according to the data-model contract in §9.
+If the renewed identity has a new `id`, the application MUST treat data tied to the previous `id` according to the application's own data-model contract (lifecycle decisions are deferred from v0.1 — see §12).
+
+### §6.5 `AuthError` vocabulary
+
+The `AuthError` returned from `authenticate` carries a normative code drawn from a closed vocabulary:
+
+```ts
+type AuthErrorCode =
+  | 'credential_invalid'        // malformed credential rejected pre-substrate
+  | 'credential_rejected'       // substrate rejected the credential
+  | 'substrate_unavailable'     // substrate unreachable / network error
+  | 'identity_unavailable'      // no such identity on this substrate
+  | 'rate_limited'              // substrate rate-limited the operation
+  | 'auth_failed';              // unexpected substrate failure
+
+interface AuthError {
+  code: AuthErrorCode;
+  message: string;
+}
+```
+
+Providers MUST return one of these codes; substrate-specific detail goes in `message`. Applications branch on `code` for substrate-portable error handling. Adapter packages document their per-substrate mapping (which substrate errors map to which code) in their conformance statement (§10).
 
 ## §7. Privacy minima (normative MUST NOT clauses)
 
@@ -156,7 +168,7 @@ These clauses are normative. A conforming provider MUST observe them.
 
 ### §7.1 No identifiers outside the contract
 
-The `UserIdentity` value MUST NOT contain:
+The `Upactor` value MUST NOT contain:
 
 - email addresses
 - phone numbers
@@ -164,98 +176,113 @@ The `UserIdentity` value MUST NOT contain:
 - date-of-birth fields
 - IP addresses
 - device identifiers
-- any field of `app_metadata` or `user_metadata` beyond what this specification permits
+- any field of `app_metadata`, `user_metadata`, or substrate-specific extension blocks
 
-If the substrate exposes such fields (Supabase Auth, OIDC, etc.), the provider's implementation of the port MUST strip them before returning a `UserIdentity` value.
+If the substrate exposes such fields (Supabase Auth, OIDC, etc.), the provider's implementation of the port MUST strip them before returning a `Upactor` value.
 
 ### §7.2 No silent enrichment
 
-Providers MUST NOT add fields to `UserIdentity` that are not part of this specification. Future versions of this specification may add fields; providers conforming to a specific version MUST NOT include fields from later versions in values returned to applications conforming to the earlier version.
+Providers MUST NOT add fields to `Upactor` that are not part of this specification. Future versions of this specification may add fields; providers conforming to a specific version MUST NOT include fields from later versions in values returned to applications conforming to the earlier version.
 
 ### §7.3 No correlation handles
 
 The `id` field MUST NOT be derivable from any user-supplied identifier (email, phone) by the application. Providers SHOULD use opaque random identifiers; if a provider derives `id` from a stable user attribute, the derivation MUST NOT be reversible by the application, and the provider MUST document the derivation in its conformance statement.
 
-### §7.4 No substrate exposure through Session
+### §7.4 No substrate exposure through Session — runtime kernel is normative
 
-The `Session` value MUST be opaque to the application. Applications MUST NOT decompose, decode, or extract claims from a `Session` directly; the only valid use is to pass it back to the port (e.g. for `invalidate`). Substrate-shaped session structures (JWTs with claims, cookies with metadata) are an implementation detail of the provider.
+The `Session` value MUST be opaque to the application. Applications MUST NOT decompose, decode, or extract claims from a `Session` directly; the only valid use is to pass it back to the port (e.g. for `invalidate`). Substrate-shaped session structures (JWTs with claims, cookies with metadata, captured tokensets) are an implementation detail of the provider.
 
-## §8. Identity lifecycle
+**Implementations MAY use `createSession` from `@prefig/upact`**, which provides the normative opacity guarantee tested across the sixteen reflection vectors in `tests/runtime.test.ts`. Implementations that do not use `createSession` MUST pass an equivalent vector suite to claim conformance: `JSON.stringify`, `Object.keys`, `Object.getOwnPropertyNames`, `Reflect.ownKeys`, `Object.getOwnPropertySymbols`, for-in iteration, `structuredClone`, `util.inspect`, direct property access, frozen-state immutability, and the controlled escape hatch via `_unwrapSession` from `@prefig/upact/internal`.
 
-Identities have a lifecycle defined by §4.3. Applications MUST honour the lifecycle:
+The runtime kernel is normative because the privacy minima at the type level are insufficient on their own — TypeScript's structural typing cannot prevent runtime reflection from leaking substrate state. The kernel turns the type-level guarantee into a runtime guarantee, centrally audited.
 
-- An expired identity MUST NOT be treated as valid. `currentIdentity` MUST NOT return an expired identity.
-- A `'never'`-renewable identity, once invalidated or expired, MUST NOT be reissued with the same `id`.
-- A `'represence'`-renewable identity MAY have its `id` changed at each renewal at the provider's discretion. The application MUST be prepared for `id` rotation across renewals.
+### §7.5 Adapter back-channel closure
 
-## §9. Decay-aware data model
+Conforming adapter packages MUST hold substrate state out of public reflection. Specifically:
 
-The application's persisted data model MUST treat every record that references an identity according to one of two contracts:
+- Substrate clients (e.g. `SupabaseClient`, `SimpleXClient`, OIDC token holders) MUST be held in closure-captured scope or ES2022 `#private` fields, never on enumerable instance properties. `(adapter as any).client` MUST be `undefined`.
+- Adapter packages MUST restrict their `package.json` `exports` field to documented entry points only. Deep imports of internal modules MUST be unreachable through normal module resolution.
+- Adapter packages MUST NOT export helpers that return substrate-typed values bypassing the port. Substrate-side operations live inside the adapter and are reached through documented helper paths (out-of-port) or not at all.
+- Adapters MUST use upact's runtime primitives (`createSession`, `_unwrapSession`, `SubstrateUnavailableError`) rather than rolling alternative implementations.
 
-```ts
-interface IdentityDecayAware {
-  belongs_to_identity: string;
-  cascade_on_identity_expiry: 'preserve' | 'expire';
-}
-```
+The application's freedom to import substrate libraries directly is preserved — that is a transparent coupling, visible in `package.json` and reviewable in code. What §7.5 closes is the asymmetric case where an application uses upact's surface AND quietly cheats the contract through adapter-internal access paths. The conformance bar at §7.5 keeps the binding genuine.
 
-### §9.1 `'preserve'`
+Conformance verification: adapter packages SHOULD ship a sixteen-vector reflection test (mirroring the pattern in `@prefig/upact-supabase/tests/back-channel.test.ts`) asserting that no sentinel substrate token leaks via any common reflection path. Such tests are the operational form of §7.5.
 
-The record persists past identity expiry. Examples: published content the application chooses to keep accessible after the author's identity has expired (rendered with anonymised author display); audit-trail records that survive deletion for legal reasons.
+## §8. Identity lifecycle (deferred to a future version)
 
-When the identity expires, the application MUST replace any identity-bearing fields in the record with a tombstone value or anonymised display, according to the application's policy.
+v0.1 does not surface substrate session lifecycle through the port. The audit (CONTRIBUTING.md) found no concrete consumer for `lifecycle.expires_at`, `lifecycle.renewable`, or related fields in shipped adapters or applications.
 
-### §9.2 `'expire'`
+Substrates with explicit TTL semantics (OIDC tokens, session cookies) handle expiry inside the adapter; consumers see `currentUpactor` returning `null` when the session is no longer valid, and `issueRenewal` returning `null` when refresh is not possible. Lifecycle modelling at the port returns when concrete consumer pressure surfaces (e.g. applications wanting to render session-expiring-soon UI, or substrates with per-encounter rotation needing to communicate continuity events).
 
-The record expires with the identity. Examples: draft content; pending invitations; presence-only ephemeral state.
+See §12 deferred-decisions register for the full reasoning.
 
-When the identity expires, the application MUST delete or expire-mark the record within a documented retention window.
-
-### §9.3 No silent permanence
-
-Applications MUST NOT rely on `id` permanence for records not annotated as `'preserve'`. If an identity has `renewable: 'represence'` and the application persists records under its `id`, the application MUST handle id-rotation at renewal — typically by tying records to a renewable parent identity (out of band) or by accepting that records expire on each renewal.
-
-## §10. Provider conformance statement
+## §9. Provider conformance statement
 
 A provider claiming conformance:
 
 1. SHALL ship a written conformance statement listing the version of this spec it conforms to and the capabilities it self-declares.
 2. SHALL document its substrate, its threat model, and any deviations from the spec's SHOULD-clauses (its MUST-clauses are not negotiable).
-3. SHALL pass the conformance test suite associated with its claimed version (test suite TBD; targeted for v0.2).
+3. SHALL document its `AuthError` mapping table (which substrate errors map to which §6.5 code).
+4. SHALL pass a sixteen-vector reflection test on the adapter instance (per §7.5) and document the test's existence in the conformance statement.
+5. SHALL pass the conformance test suite associated with its claimed version (test suite TBD; targeted for v0.2 or a funded follow-up).
 
-## §11. Security considerations
+A `CONFORMANCE.md` template ships in this repository with one filled-in example (the Supabase reference adapter).
+
+## §10. Security considerations
 
 Privacy minima reduce the attack surface for credential theft, account takeover, and data correlation at the application layer. They do not prevent compromise of the substrate or of the provider's own secrets.
 
 This specification does not prescribe a single threat model. Different providers serve different threat models through their substrate choices. Deployments SHOULD select a provider whose threat model fits their deployment context. Concretely:
 
-- **Casual coordination** (e.g. neighbourhood gatherings, alpha tests, community events) is well-served by Supabase-backed or Convene-style providers; the substrate's leakiness is acceptable in exchange for simplicity.
-- **Adversarial-context coordination** (e.g. activist organising, source protection, mutual aid in adverse-power contexts) requires providers with stronger substrates: threshold-attested across non-colluding operators, peer-to-peer matching with no registry, mutual-vouching within a defined social graph. These are different *protocols*, not different parameters of the same provider.
+- **Casual coordination** (e.g. neighbourhood gatherings, alpha tests, community events) is well-served by Supabase-backed or OIDC-brokered providers; the substrate's leakiness is acceptable in exchange for simplicity and ergonomics.
+- **Anonymous / pseudonymous coordination** is well-served by pre-conforming substrates such as SimpleX (anonymous unidirectional queues, no central directory). The substrate's natural shape is already aligned with upact's privacy minima.
+- **Adversarial-context coordination** (e.g. activist organising, source protection, mutual aid in adverse-power contexts) requires providers with stronger substrates: threshold-attested across non-colluding operators, peer-to-peer matching with no registry, mutual-vouching within a defined social graph. These are different *protocols*, not different parameters of the same provider; sketches deferred until shipped adapters surface.
 
 The capability vocabulary itself is open-ended; an application that branches on a capability inherits whatever threat-model implications that capability carries (e.g. `email` implies the substrate handles email, which has known correlation properties).
 
-## §12. Versioning and capability registry
+## §11. Versioning
 
-This specification is versioned. v0.1 is a working draft. Breaking changes between v0.x versions are permitted; v1.0 marks the first stable version.
+This specification is versioned. v0.1 is the first public draft. Breaking changes between v0.x versions are permitted; v1.0 marks the first stable version.
 
-Capabilities present in §5.1 are normative for v0.1. Capabilities outside §5.1 are advisory and follow registry conventions to be specified in v0.2. The registry MAY accept new capabilities on demonstrated implementation by at least two independent providers.
+Capabilities present in §5.1 are normative for v0.1. Capabilities outside §5.1 are advisory and follow registry conventions to be specified in v0.2. The registry MAY accept new capabilities on demonstrated implementation by at least two independent providers AND demonstrated consumption by at least one application.
+
+Governance posture: v0.x decisions are made by the maintainer. By v1.0, decisions about the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors. See `GOVERNANCE.md`.
+
+## §12. Deferred decisions (the register)
+
+The audit (CONTRIBUTING.md) trimmed v0.1 to the minimum-viable surface that shipped consumers concretely need. Items below are deferred — not abandoned, just held until a concrete consumer surfaces or a shipped adapter forces the question.
+
+| Decision | Substance | Why deferred from v0.1 |
+|---|---|---|
+| **D3 — `issueRenewal` semantics normative** | Pick identity-bound vs substrate-holder semantics as normative in §6.4 | Recommended Option A (identity-bound) per planning conversation; formal normative wording deferred until divergence between adapters becomes a consumer issue |
+| **D6 — `provenance` field on Upactor** | `provenance: { substrate: string; instance?: string }` for cross-substrate disambiguation | No current multi-substrate consumer; dyad has one substrate at a time. Brought back when multi-IDP consumer surfaces (likely Phase C OIDC adapter). |
+| **D7 — `continuation` field on Upactor** | Substrate-known transitions between identifiers (rotation, migration, rekey, reauth) | No shipped substrate currently emits transitions through the port. Reactivated when a substrate that does (Mastodon `Move`, Convex reactive rotation, etc.) ships an adapter. |
+| **D8 — `watch` capability on the port** | `watch(context): AsyncIterable<Upactor \| null>` for substrate-side push events | Same as D7. Push-shaped substrates need an adapter first. |
+| **D9 — `issueRenewal` OPTIONAL in §6.4** | Adapters MAY return `null` to signal renewal-not-supported | Moot until a concrete consumer surfaces; current adapters return `null` on renewal failure regardless. |
+| **F3 — Network-legible vs port-opaque identifier** | Spec text describing the pattern of adapters holding legible substrate handles internally for substrate-side calls, while the Upactor's `id` stays opaque | Pre-emptive without an adapter that ships out-of-port helpers. Reactivated when Phase C OIDC adapter ships and needs the issuer URL retained. |
+| **F6 — Lifecycle modelling has multiple shapes** | Enumeration of explicit-TTL, no-intrinsic-TTL, per-encounter-rotation, never-expires patterns | Moot since the lifecycle field is dropped (D-SPEC-4). |
+| **G1 — OIDC scope discipline** | Conformance template note for OIDC-class adapters: scope policy is part of the conformance statement | Moot until Phase C OIDC adapter ships. |
+| **Convene + Reticulum substrate sketches in `docs/adapter-shapes.md`** | Speculative entries removed | No shipped adapter, no concrete consumer. Sketches return alongside their adapter. |
+
+The audit checklist in CONTRIBUTING.md names the five tests every Decision passes (concrete-need / minimum-viable / substrate-agnosticism / binding-integrity / disclosure). Future contributors apply the same checklist; this register records the exit conditions for each deferred Decision.
 
 ## §13. Non-normative appendix — provider sketches
 
-Brief sketches of providers against this port. These are illustrative; only Supabase-backed and Convene-v0 are implemented or near-implementation at the time of this draft.
+Brief sketches of providers shipped or deferred against this port.
 
-**Supabase-backed.** Capabilities: `email`, `push`. Identity stable for the account lifetime; renewable via password reset (`'reauth'`). The port hides email, password, magic-links, and JWT claims from the application; `capabilities.has('email')` gates email-bound features.
+**Shipped at v0.1:**
 
-**Convene v0.** Capabilities: `presence_renewal`. Identity stable for ~24h, renewable by participating in a fresh Convene encounter (proving co-presence with another identity via shared `encounter_secret`). No email, no recovery, no central user database. Threat model: low-to-medium-stakes coordination; semi-trusted registry operator. Suitable for casual gatherings; not suitable for activist organising or source protection.
+- **`@prefig/upact-supabase`** — Supabase Auth substrate. Capabilities: `email`, `recovery` for users with email; `recovery` only for those without. Identity stable for the account lifetime; renewable via password reset. The port hides email, password, magic-links, JWT claims, `app_metadata`, `user_metadata` from the application; `capabilities.has('email')` gates email-bound features.
 
-**Threshold-attested ("Conspire").** Capabilities: `presence_renewal`, `threshold_attestation`. Identity attested by threshold cryptography across non-colluding operators. Attendance unfalsifiable to operators individually. Suitable for adversarial-context coordination where attendance lists are poison.
+- **`@prefig/upact-simplex`** — SimpleX Chat substrate (anonymous unidirectional queues, no central directory). Capabilities: `[]` (no `email`, no `recovery`; substrate affordances for messaging and p2p-matching are real but documented in the adapter README rather than declared as capabilities — see §5 / CONTRIBUTING.md audit). Identity stable per loaded profile; renewable by re-loading the profile. No email, no recovery, no central user database.
 
-**Mutual-vouching.** Capabilities: `presence_renewal`. Identity issued by N existing identities vouching for a new one within a defined social graph. Suitable for tight-trust communities.
+**Forward-looking (Phase C):**
 
-**Peer-to-peer.** Capabilities: `p2p_matching`. No registry; participants exchange `encounter_secret` directly via QR-code or NFC at the meeting. Suitable for high-trust low-scale settings; degrades gracefully without infrastructure.
+- **`@prefig/upact-oidc`** — generic OIDC client adapter delegating substrate-specific machinery to a substrate-side IDP (Authentik, Keycloak, ZITADEL, Dex). One adapter, many configured IDPs; substrate-specific machinery in IDP realm config rather than in adapter code. Adding a substrate (Mastodon-via-broker, GitHub-via-broker, etc.) becomes operational rather than code-level. Spec amendments that this adapter forces (`lifecycle`, `provenance`, OIDC scope discipline) land alongside the adapter when Phase C is picked up.
 
 The application code does not change across these. The deployment chooses the provider; the port carries the rest.
 
 ---
 
-*Document version: 0.1-draft. Authored 2026-04-30, distilled from the synthesis at `~/prefig/rebuild/docs/2026-04-30-identity-port-pattern.md`.*
+*Document version: 0.1. Audit-trimmed and AI-co-authored under disclosure 2026-05-01. See `ROADMAP.md` for the full decision lineage and `CONTRIBUTING.md` for the audit discipline.*
