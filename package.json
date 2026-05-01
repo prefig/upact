@@ -19,7 +19,7 @@
 		"ulysses-pact",
 		"open-social-awards"
 	],
-	"author": "Theodore Evans (brave.berlin) and upact contributors",
+	"author": "Theodore Evans",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/prefig/upact"
