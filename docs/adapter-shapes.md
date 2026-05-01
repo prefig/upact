@@ -1,67 +1,47 @@
-# Adapter shape sketches: validating the upact contract across substrates
+# Adapter shape sketches
 
-> **Status:** v0.1-draft sketches. Type-only — no implementations. The purpose is to verify that the upact `IdentityPort` contract is genuinely substrate-agnostic by checking it against three substrates with very different lifecycles and threat models. This document is normative *only* for the Supabase adapter (which exists); the others are forward-looking.
+> **Status (v0.1):** sketches of substrates against the upact `IdentityPort` contract. **Additional substrate sketches land alongside their shipped adapter, not before** — speculative substrates from earlier drafts (Convene, Reticulum, fediverse-DID-based) were removed by the audit (CONTRIBUTING.md): no shipped adapter, no concrete consumer. Sketches return when an adapter is genuinely on the way.
 
 ## Why this document exists
 
-The Supabase adapter (`@prefig/upact-supabase`) is the first conforming adapter. If it ships publicly without anyone checking that its design choices generalise, future adapters (Convene, fediverse, OIDC, …) will inherit a Supabase-shaped pattern — possibly one that doesn't fit their substrate's semantics. This document forces that check before the first adapter is set in stone.
+`@prefig/upact-supabase` and `@prefig/upact-simplex` are the two reference adapters at v0.1. This document records the shape choices each made and the substrate-conformance camp it falls into, so future adapters (notably `@prefig/upact-oidc` in Phase C) inherit the cross-substrate validation that already happened — not a single-adapter pattern.
 
-The check is type-only. We sketch the *signatures* each adapter would need to expose, not their implementations. The signatures surface the substrate-specific assumptions silently encoded by each adapter's interface.
+The check is type-only. We sketch the *signatures* each adapter exposes, not their implementations. The signatures surface the substrate-specific assumptions encoded by each adapter's interface.
 
 ### Substrates fall into two camps
 
-Per the synthesis (`~/prefig/rebuild/docs/2026-04-30-identity-port-pattern.md` §"Threat-model decoupling"), substrates relate to upact's privacy minima in two distinct ways:
+- **Pre-conforming substrates** — e.g. SimpleX (no central directory; anonymous unidirectional queues). The substrate's natural shape is already aligned with upact's MUST-NOTs. Adapters are mostly *type translation*, not architectural enforcement — thin packages.
+- **Enforcement substrates** — e.g. Supabase Auth, OIDC providers (Phase C). The substrate exposes far more than upact permits; the adapter does the work of stripping, hiding, and capability-bounding — thicker packages.
 
-- **Substrates that pre-conform** — e.g. SimpleX (no user identifiers; anonymous unidirectional queues), Reticulum (cryptographic Destination Hashes, no central directory), threshold-attested designs, peer-to-peer matching. The substrate's natural shape is already aligned with upact's MUST-NOTs. Adapters are mostly *type translation*, not architectural enforcement — thin packages.
-- **Substrates that require enforcement** — Supabase Auth, OIDC, OAuth issuers, Fediverse account servers. The substrate exposes far more than upact permits; the adapter does the work of stripping, hiding, and capability-bounding — thicker packages.
+`@prefig/upact-supabase` is the worked example of the *enforcement* case: Supabase's `User` shape exposes email, phone, JWT claims, `app_metadata`, `user_metadata`, all of which the adapter strips or hides. `@prefig/upact-simplex` is the worked example of the *pre-conforming* case: the SimpleX daemon's local profile carries `localDisplayName`, `agentUserId` (UUID), and a few status flags; the adapter hashes the UUID, sanitises the display name, and that's roughly it.
 
-`@prefig/upact-supabase` is the worked example of the *enforcement* case: Supabase's `User` shape exposes email, phone, JWT claims, `app_metadata`, and admin lookup affordances, all of which the adapter strips or hides. Reticulum and SimpleX adapters (sketched briefly below) would be the worked examples of the *pre-conforming* case if and when they ship.
+## Substrates compared (v0.1 shipped reality)
 
-## Substrates compared
-
-The first three columns (Supabase, Convene, fediverse) are the primary comparison; the right two (SimpleX, Reticulum) are pre-conforming substrates added briefly so the *thin-adapter* case is visible alongside the *thick-adapter* one. The substrate-conformance camp each falls in is given on the second row.
-
-| Property | Supabase | Convene | Fediverse (DID-based) | SimpleX | Reticulum |
-|---|---|---|---|---|---|
-| Substrate-conformance camp | Enforcement | Enforcement | Mostly enforcement | Pre-conforming | Pre-conforming |
-| Identity-id stability | Account lifetime (years) | Per-encounter (~24h) | Tied to the DID itself (decades) | Application-scoped, derived from local profile | Application-scoped, derived from Destination Hash |
-| Lifecycle `expires_at` | Never set | Always set | Never set | Optional (per-cycle queue rotation) | Never (Destination Hash is "immutable as a stone") |
-| `renewable` mode | `'reauth'` | `'represence'` | `'reauth'` or session-only | `'reauth'` or `'represence'` | `'never'` (or `'reauth'` if user rotates keys) |
-| Id rotates on renewal | No | Yes (upact §4.1, §8) | No | Application-defined | No |
-| Substrate "user object" | A `User` record in `auth.users` | An encounter record + registry attestation | A DID document fetched over HTTPS / DNS | A local SimpleX profile (no server-side record) | A Destination Hash (cryptographic root) |
-| `currentIdentity` synchrony | Cookies bound to request — fast local read | Registry round-trip | DNS / HTTPS fetch | Local read (no server) | Local read (mesh / offline-capable) |
-| Capabilities | `{ email, recovery }` | `{ presence_renewal }` | Varies (depends on DID document) | `{ messaging, p2p_matching }` | `{ messaging, p2p_matching, mesh, offline_capable }` |
-| Admin / service-role lookup | `auth.admin.getUserById` | No equivalent | No equivalent | No equivalent | No equivalent |
-| Recovery semantics | Email-based (Supabase) | None | Cryptographic (DID-controller-key recovery) | None (start a new profile) | None (key-loss = identity-loss) |
-| Threat model (upact §11) | Casual coordination | Casual coordination, semi-trusted registry | Varies by DID method | Anonymous / pseudonymous | Adversarial / off-grid / infrastructure-resilient |
-| Adapter thickness | Thick (lots to strip) | Medium (registry-mediated) | Medium (DID-method-specific) | Thin (mostly type translation) | Thin (mostly type translation) |
+| Property | Supabase | SimpleX |
+|---|---|---|
+| Substrate-conformance camp | Enforcement | Pre-conforming |
+| Identity-`id` stability | Account lifetime (years) | Application-scoped, derived from local profile UUID |
+| Substrate "user object" | A `User` record in `auth.users` | A local SimpleX profile (no server-side record) |
+| Adapter binding shape | Per-request: `event.locals.supabase` is cookie-bound at hook time | Per-instance: long-lived daemon connection, single-tenant per process |
+| `currentUpactor` synchrony | Cookies bound to request — fast local read | Daemon round-trip (no remote server, but local IPC) |
+| Capabilities (v0.1) | `{ email, recovery }` for users with email; `{ recovery }` otherwise | `[]` (substrate affords messaging and p2p_matching, but no v0.1 consumer surfaces them through the port — see SPEC §5 audit) |
+| `display_hint` source | `user.user_metadata.display_name` if non-empty after trim | `User.localDisplayName` if non-empty after trim AND not email-shaped (per §4.2 MUST NOT) |
+| Recovery semantics | Email-based (Supabase Auth) | None (start a new profile) |
+| Threat model | Casual coordination | Anonymous / pseudonymous |
+| Adapter thickness | Thick (lots to strip) | Thin (mostly type translation) |
 
 ## Adapter constructor signatures
 
-The constructor reveals what substrate state the adapter binds to.
+The constructor reveals what substrate state the adapter binds to. v0.1 ships both adapters as **factory-only** (no class form): Decision 11 / SPEC §7.5 closure-capture conformance is most genuinely satisfied by the factory shape, and the audit found no concrete forward-looking use case the factory does not satisfy.
 
 ```ts
-// Supabase: request-bound SupabaseClient (cookies via @supabase/ssr)
-class SupabaseUpactAdapter implements IdentityPort {
-  constructor(private supabase: SupabaseClient) {}
-}
+// Supabase: request-bound SupabaseClient (cookies via @supabase/ssr).
+// Substrate state held in closure scope.
+export function createSupabaseAdapter(supabase: SupabaseClient): IdentityPort;
 
-// Convene: a registry HTTP client + a local store of encounter records
-// (the local store varies by deployment — IndexedDB, KV, in-memory)
-class ConveneUpactAdapter implements IdentityPort {
-  constructor(
-    private registry: ConveneRegistryClient,
-    private encounters: EncounterStore,
-  ) {}
-}
-
-// Fediverse (sketch — DID method varies): a DID resolver + a session store
-class FediverseUpactAdapter implements IdentityPort {
-  constructor(
-    private resolver: DidResolver,           // method-specific
-    private sessions: FediverseSessionStore, // application-provided
-  ) {}
-}
+// SimpleX: per-instance, long-lived daemon connection.
+// Substrate state held in closure scope.
+export function createSimpleXAdapter(client: SimpleXClient): IdentityPort;
 ```
 
 **Generalisation:** there is no single shape of "substrate client." Each adapter takes whatever its substrate's read interface is. The Supabase adapter's request-bound client is one substrate's answer, not a precedent for others.
@@ -73,92 +53,33 @@ Whether the per-adapter mapper is sync or async is forced by substrate access pa
 ```ts
 // Supabase: substrate User available synchronously after
 // supabase.auth.getUser() resolves. Pure mapper is feasible.
-function userToIdentity(user: User): UserIdentity { /* ... */ }
+function userToUpactor(user: User): Upactor;
 
-// Convene: identity construction may need a registry round-trip to verify
-// the encounter is still valid + fresh. Async only.
-async function encounterToIdentity(
-  encounter: EncounterRecord,
-  registry: ConveneRegistryClient,
-): Promise<UserIdentity> { /* ... */ }
-
-// Fediverse: identity construction requires DID document resolution. Async only.
-async function didToIdentity(
-  did: string,
-  resolver: DidResolver,
-): Promise<UserIdentity> { /* ... */ }
+// SimpleX: id derivation hashes the substrate's UUID via Web Crypto API.
+// The substrate-User is available locally, but the id derivation itself
+// is async. (Async because Web Crypto is async; nothing about the
+// substrate forces an extra round trip.)
+async function userToUpactor(user: User): Promise<Upactor>;
 ```
 
-**Generalisation:** adapters with substrate-User objects available in-memory (via cookies, JWT, or local cache) MAY expose a sync mapper as a convenience; adapters whose substrate requires a network round-trip MUST be async-only. The port operations themselves (upact §6) are all async, which is correct. The Supabase adapter's sync-mapper convenience is **substrate-specific**, not a port pattern future adapters should inherit.
+**Generalisation:** adapters with substrate-User objects available in-memory MAY expose a sync mapper as a convenience; adapters whose mapping requires async work (Web Crypto, network round-trip, file I/O) MUST be async. The port operations themselves (SPEC §6) are all async, which is correct. Sync-mapper convenience is **substrate-specific**, not a port pattern future adapters should inherit.
 
-## Lifecycle differences
+## Decision 11 closure-capture conformance — both adapters
 
-```ts
-// Supabase
-{ issued_at: user.created_at, renewable: 'reauth' }
-// no expires_at — Supabase identities don't expire
+Both adapters hold their substrate client in closure scope. `(adapter as any).client` (and equivalent) returns `undefined` for both. Each ships a sixteen-vector reflection test (`tests/back-channel.test.ts`) verifying that no sentinel substrate token leaks via any common reflection vector.
 
-// Convene
-{
-  issued_at: encounter.timestamp,
-  expires_at: encounter.timestamp + 24h,
-  renewable: 'represence',
-}
-// expires_at always set; id ROTATES on renewal (per upact §4.1, §8)
+The factory pattern is the operational form of §7.5: there is no instance property to reach for. Both adapters' tests assert this directly.
 
-// Fediverse (DID-based session)
-{ issued_at: <session start>, renewable: 'reauth' }
-// session-bound; the underlying DID itself doesn't expire
-```
+## Forward-looking sketches (Phase C)
 
-**Generalisation:** applications consuming the port MUST be prepared for `expires_at` being set or unset, and for `id` rotation across renewals when `renewable === 'represence'` (upact §8). The Supabase adapter's "no `expires_at`, no rotation" is the simplest case; application code that consumes the adapter should still be written for the general case so substrate-swap doesn't require an application rewrite.
+`@prefig/upact-oidc` is planned for a follow-up session (see `docs/plans/2026-05-01-003-feat-upact-oidc-adapter-plan.md`). When it ships:
 
-## Capability binding (the `EmailChannel` question)
+- Constructor takes `OidcConfig` (discovery URL, client ID/secret, scopes, redirect URI) plus a per-request cookie jar and the inbound `Request`.
+- Substrate state held in closure scope, same shape as the v0.1 adapters.
+- Brings back `lifecycle: { expires_at }` to the `Upactor` type (concrete consumer: JWT `exp` claim).
+- Brings back `provenance: { substrate: 'oidc', instance: <issuer URL> }` (concrete consumer: cross-IDP discrimination when applications aggregate).
+- Capability declaration audit: starts at `[]`; capabilities land via SPEC §5.2 extension when concrete consumers surface.
 
-```ts
-// Supabase: 'email' capability bound via service-role admin lookup
-class EmailChannel {
-  constructor(private adminClient: SupabaseClient, private sendImpl: SendImpl) {}
-  send(identity: UserIdentity, message: EmailMessage): Promise<boolean> {
-    // looks up email by identity.id via adminClient.auth.admin.getUserById
-  }
-}
+The IDP-delegation pattern (Path B) means the OIDC adapter's substrate is "any OIDC-compliant IDP" — Authentik, Keycloak, ZITADEL, or Dex (used as the local dev rig). Mastodon, GitHub, Google, Auth0 etc. become *upstream* OAuth providers federated through the IDP, not direct upact substrates.
 
-// Convene: 'presence_renewal' capability has no analog of a "delivery channel"
-// — there is no application-side delivery mechanism, only renewal evidence the
-// application provides. EmailChannel does not generalise to Convene; the
-// capability binding is provider-specific.
-
-// Fediverse (DID): 'email' capability MIGHT exist if the DID document includes
-// a verification method with email — but there is no service-role admin client.
-// The channel would resolve email from the DID document and send via the
-// application's own SMTP. Different shape from Supabase's admin-lookup pattern.
-```
-
-**Generalisation:** capability-bound channels are **per-capability + per-substrate** constructions. There is no generic "channel pattern" inherited from `EmailChannel`. Per upact §5.3: "channel operations are outside the scope of this document." This is not a contract failure — it is the reason the spec scopes them out. Each adapter exports the channels its substrate supports, with substrate-appropriate signatures.
-
-## What this validates
-
-1. The port operations (`authenticate`, `currentIdentity`, `invalidate`, `issueRenewal`) are all async, which fits every substrate above. ✓
-2. The `UserIdentity` shape is substrate-agnostic. ✓
-3. Lifecycle modes (`'reauth'`, `'represence'`, `'never'`) cover every substrate above. ✓
-4. The capability vocabulary is open-ended and self-described per provider. ✓
-5. Channel operations are correctly scoped *out* of the spec — they vary too much across substrates. ✓
-6. Pre-conforming substrates produce thinner adapters than enforcement substrates — the spec accommodates both naturally without privileging either. ✓
-
-## What this surfaces as Supabase-specific (NOT to be inherited by future adapters)
-
-1. **A request-bound substrate client at construction.** Convene and fediverse adapters take different substrate state.
-2. **A sync `userToIdentity` mapper** alongside the async port operations. Supabase-only convenience.
-3. **Service-role admin-client lookup** as the channel-binding pattern. Substrate-specific.
-4. **Coupling `recovery` to `email`** in the capability set. Supabase-specific (Supabase recovery is email-based). Convene has no recovery; fediverse recovery is cryptographic.
-
-## Open questions for v0.2
-
-- Should the upact spec define a normative channel-binding pattern, or stay scoped out per §5.3? The Convene + fediverse comparison suggests staying scoped out.
-- Should adapters' conformance statements (upact §10) explicitly document substrate quirks like the Supabase `{email, recovery}` coupling, so application authors know which capabilities are independent vs coupled in their substrate?
-- For applications consuming the port: what is the recommended pattern for handling `id` rotation across renewals (upact §8)? Worth a brief "adopting upact in an application" guide.
-
----
-
-*Added 2026-04-30 alongside `@prefig/upact-supabase` v0.1.0-draft, to validate the port pattern against substrates other than Supabase before the first adapter ships publicly.*
+When the OIDC adapter ships, this document expands with its column. Convene, Reticulum, and fediverse-DID-based sketches return only if and when shipped adapters arrive — per the audit, sketches don't precede the shipped adapter.
