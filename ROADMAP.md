@@ -32,10 +32,6 @@ upact is not a replacement for OIDC clients (`auth.js`, `lucia`, `openid-client`
 
 `IdentityPort.watch(context): AsyncIterable<Upactor | null>`. Push-shaped substrates need an adapter first; the streaming-primitive choice (AsyncIterable vs Observable vs callback) deferred until a concrete push substrate ships.
 
-### Decision 9 — `issueRenewal` OPTIONAL in §6.4
-
-**Closed 2026-05-01.** Normative OPTIONAL: adapters that do not support renewal return `null`. `@prefig/upact-oidc` implements renewal via `refreshTokenGrant` (Decision 9 open path) and returns `null` when no refresh token is present. Normative text in `SPEC.md §6.4`.
-
 ### v0.2 conformance test suite
 
 **Posture.** A published conformance test suite (referenced in `SPEC.md §9` as "TBD") that adapter authors run to claim conformance mechanically. Currently only the sixteen-vector reflection test is standardised; the rest of the conformance bar is prose.
