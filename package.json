@@ -1,14 +1,37 @@
 {
 	"name": "@prefig/upact",
-	"version": "0.1.0-draft",
+	"version": "0.1.0",
 	"description": "upact — identity port: a typed architectural contract between a social application and any identity provider, with privacy minima as the translation rule.",
 	"license": "(CC-BY-4.0 AND Apache-2.0)",
 	"type": "module",
-	"main": "./src/index.ts",
+	"main": "./dist/index.js",
 	"exports": {
-		".": "./src/index.ts",
-		"./internal": "./src/internal.ts"
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./internal": {
+			"types": "./dist/internal.d.ts",
+			"import": "./dist/internal.js"
+		}
 	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE",
+		"LICENSE-CODE",
+		"SPEC.md",
+		"ROADMAP.md",
+		"CHANGELOG.md",
+		"CONTRIBUTING.md",
+		"GOVERNANCE.md",
+		"CONFORMANCE.md",
+		"SECURITY.md"
+	],
+	"engines": {
+		"node": ">=18"
+	},
+	"sideEffects": false,
 	"keywords": [
 		"identity",
 		"identity-port",
@@ -22,16 +45,18 @@
 	"author": "Theodore Evans",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/prefig/upact"
+		"url": "git+https://github.com/prefig/upact.git"
 	},
 	"scripts": {
+		"build": "tsc",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"prepublishOnly": "npm run build && npm test"
 	},
 	"devDependencies": {
-		"@types/node": "^20.0.0",
+		"@types/node": "^22.0.0",
 		"typescript": "^5.0.0",
-		"vitest": "^1.0.0"
+		"vitest": "^3.0.0"
 	}
 }

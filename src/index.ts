@@ -11,6 +11,7 @@
 
 export type {
 	Capability,
+	IdentityLifecycle,
 	Upactor,
 	UserIdentity, // deprecated alias for v0.1.x compat; removed in v0.2
 	Session,

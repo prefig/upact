@@ -7,6 +7,11 @@
 		"noUncheckedIndexedAccess": true,
 		"lib": ["ES2022", "DOM"],
 		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"isolatedDeclarations": true,
+		"verbatimModuleSyntax": true,
+		"rootDir": "src",
 		"outDir": "dist"
 	},
 	"include": ["src/**/*"]
