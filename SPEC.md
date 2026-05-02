@@ -47,6 +47,18 @@ An **application** conforms to this specification when it:
 
 Conformance is to a specific version of the spec.
 
+### §3.1 Scope: user-tier identity
+
+This specification governs user-facing identity — the relationship between an authenticated person and the application. It does not govern:
+
+- Application-internal authorization (admin, moderator, operator capabilities)
+- System-to-system credentials
+- Any identity concern that is not a direct person–application relationship
+
+**Authorization is out of scope.** The privacy minima of §7 describe what the application may know about a user; they do not describe what an operator may know about, or do to, the system. How an application implements operator/administrative tooling is its own concern — whether through a substrate-native capability claim, an application-layer role, a separate authentication plane on a different surface, a command-line tool, or no operator surface at all.
+
+`Upactor` attributes and capabilities MUST NOT be used to model authorization roles. The capability vocabulary in §5 governs what user-facing features the application may use (e.g. sending an email to a user); it does not govern what privileged operations a particular caller is permitted to perform.
+
 ## §4. Upactor
 
 A `Upactor` is a value of the following shape:
