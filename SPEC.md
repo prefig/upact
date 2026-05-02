@@ -47,6 +47,8 @@ An **application** conforms to this specification when it:
 
 Conformance is to a specific version of the spec.
 
+**Application-side conformance is currently a discipline, not a test.** The provider has a sixteen-vector reflection test for §7.5 conformance; the application side has no equivalent automated check. A future v0.2 release SHOULD ship application-side static checks (lint rules forbidding substrate-library imports outside the substrate seam, or equivalent) to mechanise this bar.
+
 ### §3.1 Scope: user-tier identity
 
 This specification governs user-facing identity — the relationship between an authenticated person and the application. It does not govern:
@@ -196,6 +198,8 @@ interface AuthError {
 ```
 
 Providers MUST return one of these codes; substrate-specific detail goes in `message`. Applications branch on `code` for substrate-portable error handling. Adapter packages document their per-substrate mapping (which substrate errors map to which code) in their conformance statement (§10).
+
+Adapters may emit a subset of the vocabulary. Codes that distinguish identity-existence from credential-validity (notably `identity_unavailable`) are reserved for substrates that surface that distinction; the v0.1 reference adapters do not — Supabase conflates "no such user" with "wrong password" as credential-stuffing resistance, OIDC surfaces failures as token errors. Application code can branch on the full vocabulary; some branches will be unreachable for some adapters.
 
 ## §7. Privacy minima (normative MUST NOT clauses)
 
