@@ -65,7 +65,7 @@ try {
 
 | Application | Substrate | Notes |
 |---|---|---|
-| [dyad.berlin](https://dyad.berlin) | `@prefig/upact-supabase` | Reference adopter; application + database layers decoupled (Phase D complete) |
+| [dyad.berlin](https://dyad.berlin) | `@prefig/upact-supabase` | Reference adopter; FK chain and RLS layer substrate-agnostic, application routes return `Upactor` |
 
 If your application uses upact, open a PR to add it here.
 
