@@ -47,6 +47,21 @@ An **application** conforms to this specification when it:
 
 Conformance is to a specific version of the spec.
 
+### §3.1 Scope: user-tier identity
+
+This specification governs user-facing identity — the relationship between an authenticated person and the application. It does not govern:
+
+- Application-internal authorization roles (admin, moderator, operator)
+- System-to-system credentials
+- Any identity concern that is not a direct person–application relationship
+
+**Operator and admin roles are out of scope.** Applications that need to distinguish administrators from ordinary users SHOULD use a substrate-native capability claim — for example, `app_metadata.role` from Supabase Auth, or an OIDC group claim — rather than encoding admin status in `Upactor` attributes or capabilities. Modelling admin as a user attribute would be architecturally incorrect for two reasons:
+
+1. Admin is an *authorization* role, not an *identity* attribute. The privacy minima of §7 describe what the application may know about a user; they do not describe what an operator may know about the system.
+2. Operator identity appropriately remains coupled to the substrate that manages operator credentials. When the substrate changes, the operator capability claim changes with it — but the application's user-tier identity handling, governed by this spec, does not.
+
+This design produces a natural two-tier model: user-tier identity routes through the port (substrate-agnostic, privacy minima enforced); operator-tier identity routes through a substrate-native channel (explicit, out-of-port, changes at provider-swap time under operator supervision).
+
 ## §4. Upactor
 
 A `Upactor` is a value of the following shape:
