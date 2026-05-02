@@ -27,6 +27,8 @@ Copy this template into your adapter package as `CONFORMANCE.md` and fill in eac
 
 For each capability listed, name the concrete consumer (the application code that gates on it).
 
+Note: authorization roles (admin, moderator, operator) MUST NOT appear here. They are out of scope for the port (§3.1).
+
 ## AuthError mapping table
 
 | Substrate error | AuthErrorCode |
