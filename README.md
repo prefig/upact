@@ -6,7 +6,9 @@ A typed architectural contract between a social application and any identity pro
 
 upact is named for the Ulysses pact that adopters make when building privacy-first social technologies that are architecturally hostile to extractive practices.
 
-upact is a minimum-disclosure anti-corruption layer between your application and any supported identity-management substrate. The privacy minima at the port (no email, no phone, no IP, opaque sessions, enumerated capabilities) are commitments the application can no longer violate *through the upact-shaped path*. An application built on upact cannot quietly pivot to surveillance-driven, data-retention-driven, or third-party-sharing-shaped revenue *through the identity layer* without visible architectural change. Pivots reachable through direct substrate-library import remain a code-review concern, not an architectural one — see §7.5 below and `SECURITY.md` for the limit.
+upact is a minimum-disclosure anti-corruption layer between your application and any supported identity-management substrate. The privacy minima at the port (no email, no phone, no IP, opaque sessions, enumerated capabilities) are commitments the application can no longer violate *through the upact-shaped path*. An application built on upact cannot quietly pivot the identity layer toward surveillance, retention, or third-party data-sharing without visible architectural change.
+
+The port does not block pivots reachable through direct substrate-library import — those remain visible to code review only. See §7.5 below and `SECURITY.md` for the limit.
 
 The constraint also shapes design. When the application cannot know a user's email, you build features that don't need it. This provides friction against reflexes inherited from an extraction- and retention-shaped social media ecosystem. That friction matters especially with LLM-assisted development, where those patterns are efficiently automated by tools trained on that ecosystem.
 
@@ -25,13 +27,13 @@ The values commitment is what motivates platforms to consider adopting upact. Th
 
 ## Limits — what upact does not prevent
 
-upact closes the identity boundary architecturally. It does not, by itself, prevent application-level misuse of the substrate:
+upact closes the identity boundary architecturally. Application-level misuse of the substrate is not closed:
 
-- An application that ignores upact and calls the substrate library directly (e.g. `supabase.auth.getUser()`) gets back whatever the substrate exposes, including email and other fields the port would have stripped. upact's binding holds only for code that consumes `Upactor` values from the port.
-- The application's freedom to import substrate libraries is preserved (§7.5). That coupling is transparent — visible in `package.json` and in code review — but it is not architecturally blocked.
-- Authorization (admin, moderator, operator) is out of scope for the port (§3.1). upact does not provide a permissions model.
+- An application that ignores the port and calls the substrate library directly (e.g. `supabase.auth.getUser()`) gets back whatever the substrate exposes, including email and other fields the port would have stripped. upact's binding holds only for code that consumes `Upactor` values from the port.
+- The application's freedom to import substrate libraries is preserved (§7.5). That coupling is transparent — visible in `package.json` and reviewable in code — but the port does not block it.
+- Authorization (admin, moderator, operator) is out of scope (§3.1). upact does not provide a permissions model.
 
-The discipline that makes the binding stick: treat substrate-library imports as a marked, audited boundary in the application — only allowed in the substrate seam (the adapter, the auth callback handler), forbidden everywhere else. A future v0.2 conformance test suite will mechanise this; today it is convention. See `SECURITY.md` for the full scope.
+The discipline that makes the binding stick: treat substrate-library imports as a marked, audited boundary — only allowed in the substrate seam (the adapter, the auth callback handler), forbidden in service code. A future v0.2 conformance test suite will mechanise this; today it is convention. See `SECURITY.md` for the full scope.
 
 ## Usage
 
