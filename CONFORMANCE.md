@@ -27,7 +27,7 @@ Copy this template into your adapter package as `CONFORMANCE.md` and fill in eac
 
 For each capability listed, name the concrete consumer (the application code that gates on it).
 
-Note: operator and admin roles MUST NOT appear here. They are out of scope for the port (§3.1). If your substrate exposes role or group claims, surface them through a substrate-native out-of-port channel, not through `Upactor` capabilities.
+Note: authorization roles (admin, moderator, operator) MUST NOT appear here. They are out of scope for the port (§3.1).
 
 ## AuthError mapping table
 
