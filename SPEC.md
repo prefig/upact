@@ -51,16 +51,13 @@ Conformance is to a specific version of the spec.
 
 This specification governs user-facing identity — the relationship between an authenticated person and the application. It does not govern:
 
-- Application-internal authorization roles (admin, moderator, operator)
+- Application-internal authorization (admin, moderator, operator capabilities)
 - System-to-system credentials
 - Any identity concern that is not a direct person–application relationship
 
-**Operator and admin roles are out of scope.** Applications that need to distinguish administrators from ordinary users SHOULD use a substrate-native capability claim — for example, `app_metadata.role` from Supabase Auth, or an OIDC group claim — rather than encoding admin status in `Upactor` attributes or capabilities. Modelling admin as a user attribute would be architecturally incorrect for two reasons:
+**Authorization is out of scope.** The privacy minima of §7 describe what the application may know about a user; they do not describe what an operator may know about, or do to, the system. How an application implements operator/administrative tooling is its own concern — whether through a substrate-native capability claim, an application-layer role, a separate authentication plane on a different surface, a command-line tool, or no operator surface at all.
 
-1. Admin is an *authorization* role, not an *identity* attribute. The privacy minima of §7 describe what the application may know about a user; they do not describe what an operator may know about the system.
-2. Operator identity appropriately remains coupled to the substrate that manages operator credentials. When the substrate changes, the operator capability claim changes with it — but the application's user-tier identity handling, governed by this spec, does not.
-
-This design produces a natural two-tier model: user-tier identity routes through the port (substrate-agnostic, privacy minima enforced); operator-tier identity routes through a substrate-native channel (explicit, out-of-port, changes at provider-swap time under operator supervision).
+`Upactor` attributes and capabilities MUST NOT be used to model authorization roles. The capability vocabulary in §5 governs what user-facing features the application may use (e.g. sending an email to a user); it does not govern what privileged operations a particular caller is permitted to perform.
 
 ## §4. Upactor
 
