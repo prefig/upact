@@ -65,7 +65,7 @@ try {
 
 | Application | Substrate | Notes |
 |---|---|---|
-| [dyad.berlin](https://dyad.berlin) | `@prefig/upact-supabase` | First adopter; M1 integration in progress |
+| [dyad.berlin](https://dyad.berlin) | `@prefig/upact-supabase` | Reference adopter; application + database layers decoupled (Phase D complete) |
 
 If your application uses upact, open a PR to add it here.
 
