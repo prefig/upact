@@ -323,8 +323,12 @@ Brief sketches of providers shipped or deferred against this port.
 
 - **`@prefig/upact-oidc`** — generic OIDC client adapter delegating substrate-specific machinery to a substrate-side IDP (Authentik, Keycloak, ZITADEL, Dex). One adapter, many configured IDPs; substrate-specific machinery in IDP realm config rather than in adapter code. Adding a substrate (Mastodon-via-broker, GitHub-via-broker, etc.) becomes operational rather than code-level. Ships `lifecycle` (JWT `exp` → `expires_at`, `renewable: 'reauth'`), `provenance` (`substrate: 'oidc'`, `instance: issuer`), and runtime scope enforcement (`validateScopes`). 75 unit tests + 11 Dex integration tests.
 
+**Shipped at v0.1.2:**
+
+- **`@prefig/upact-mastodon`** — direct Mastodon REST API adapter (per-login instance discovery, dynamic OAuth client registration, no token expiry). Substrate is "any Mastodon-API-compatible server"; Mastodon proper validated, forks (Pleroma, Akkoma, GoToSocial) MAY work via API compatibility but are not validated at v0.1.0. Capabilities: `[]`. Lifecycle: `expires_at: undefined`, `renewable: 'reauth'` (Mastodon access tokens never auto-expire per F6). Provenance: `{ substrate: 'mastodon', instance: <origin> }`. Identifier derivation: `sha256(actor.url)[:32]` per F3. Exists alongside `@prefig/upact-oidc` rather than replacing it: deployments with a fixed instance keep Path B (OIDC + Authentik); deployments wanting fediverse-flexibility (any user-chosen instance) use this package. See ROADMAP.md Decision 12 for the strategy nuance.
+
 The application code does not change across these. The deployment chooses the provider; the port carries the rest.
 
 ---
 
-*Document version: 0.1.1. Audit-trimmed and AI-co-authored under disclosure 2026-05-01. See `ROADMAP.md` for the full decision lineage and `CONTRIBUTING.md` for the audit discipline.*
+*Document version: 0.1.2. Audit-trimmed and AI-co-authored under disclosure 2026-05-01. See `ROADMAP.md` for the full decision lineage and `CONTRIBUTING.md` for the audit discipline.*

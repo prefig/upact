@@ -1,6 +1,6 @@
 # upact roadmap
 
-Last updated: 2026-05-01 (rev. 7 — v0.1.1 shipped: lifecycle + provenance, Phase C OIDC adapter, Dex integration tests).
+Last updated: 2026-05-04 (rev. 8: v0.1.2 shipped: Decision 12 closed, `@prefig/upact-mastodon` direct adapter for fediverse-flexibility deployments).
 
 Open work for the v0.2 release window. Closed items are retained for institutional record.
 
@@ -10,7 +10,7 @@ upact is a self-binding contract for values-aligned platform builders. The priva
 
 upact is not a replacement for OIDC clients (`auth.js`, `lucia`, `openid-client`), identity-broker IDPs (Authentik, Keycloak, ZITADEL), or identity protocols (DIDs, Verifiable Credentials). It is the typed-contract layer above them.
 
-**Adapter strategy (Path B).** Enforcement-camp substrates with OIDC-shaped auth (Supabase, Mastodon, Auth0, etc.) consume upact via `@prefig/upact-oidc`, which delegates substrate-specific machinery to a substrate-side IDP (Authentik, ZITADEL, etc.). Pre-conforming substrates (SimpleX, Reticulum) use direct adapters. This split is reflected in `docs/adapter-shapes.md`.
+**Adapter strategy.** Path B (consuming upact via `@prefig/upact-oidc` brokered through Authentik / Keycloak / ZITADEL) is the default for OIDC-shaped enforcement substrates (Supabase, Auth0, Mastodon-as-fixed-instance, etc.) with stable per-deployment instance configuration. Substrates whose UX requires per-login instance flexibility (multi-instance fediverse, user-chosen instances) ship as direct adapters per Decision 12. Pre-conforming substrates (SimpleX, Reticulum) use direct adapters. This split is reflected in `docs/adapter-shapes.md`.
 
 ## Open
 
@@ -39,6 +39,28 @@ upact is not a replacement for OIDC clients (`auth.js`, `lucia`, `openid-client`
 **Status.** Targeted for v0.2. Funding would accelerate this.
 
 ## Closed
+
+### v0.1.2 (2026-05-04)
+
+**Shipped.** `@prefig/upact-mastodon` direct Mastodon REST API adapter (separate package). Decision 12 closed; spec amendments to `SPEC.md §13`, `docs/adapter-shapes.md`, `docs/cross-adapter-findings.md`, and the Adapters table in this README.
+
+---
+
+### Decision 12 — Multi-instance fediverse exception to Path B
+
+**Closed 2026-05-04.** Path B (the OIDC adapter brokered through an IDP) is the right answer for OIDC-shaped substrates with stable per-deployment instance configuration. It is the wrong answer for substrates whose UX requires per-login instance flexibility: each user picks their home instance at login time, and that instance is not knowable until the user types it. Mastodon and the rest of the fediverse fit this shape; Authentik's federation-source registration is per-instance and admin-mediated, which cannot be done at login time for an arbitrary instance.
+
+The three deployment shapes:
+
+| Deployment | Adapter | Why |
+|---|---|---|
+| App authenticates against ONE fixed instance (your-org.social) | `@prefig/upact-oidc` + Authentik with that instance preregistered | Path B works; smallest surface |
+| App authenticates against ANY user-chosen Mastodon instance | `@prefig/upact-mastodon` (the direct adapter) | Path B's preregistration loop is incompatible with arbitrary-instance UX |
+| App authenticates against a closed list of partner instances | Either; lean upact-oidc unless the partner list churns | Path B if list is stable; the direct adapter if list is dynamic |
+
+`@prefig/upact-mastodon` is the first of this shape. A future `@prefig/upact-atproto` (Bluesky) adapter would also qualify: DID-based identity is portable across PDSes, and the per-login resolution path is even more inherent. Concrete consumer drove this Decision; the strategy nuance to ROADMAP line 13 makes the exception explicit so future adapter authors know where the line is.
+
+---
 
 ### v0.1.1 (2026-05-01)
 

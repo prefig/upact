@@ -72,6 +72,7 @@ try {
 | `@prefig/upact-supabase` | Supabase Auth | Enforcement | v0.1.0 shipped |
 | `@prefig/upact-simplex` | SimpleX Chat daemon | Pre-conforming | v0.1.0 shipped |
 | `@prefig/upact-oidc` | Any OIDC-compliant IDP (Dex, Authentik, Keycloak, ZITADEL) | Enforcement | v0.1.0 shipped |
+| `@prefig/upact-mastodon` | Mastodon REST API (any user-chosen instance) | Enforcement | v0.1.0 shipped |
 
 ## Adopters
 
@@ -97,7 +98,7 @@ If your application uses upact, open a PR to add it here.
 
 ## Status
 
-v0.1.1. Three reference adapters shipped (OIDC added in 0.1.1). Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
+v0.1.2. Four reference adapters shipped (OIDC added in 0.1.1, Mastodon added in 0.1.2). Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
 
 ## Licence
 

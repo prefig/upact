@@ -4,6 +4,33 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ---
 
+## [0.1.2] — 2026-05-04
+
+Documentation-only release in this package. The substantive change is a new external adapter (`@prefig/upact-mastodon`) shipped separately.
+
+### Added
+
+- ROADMAP Decision 12 (closed): multi-instance fediverse exception to Path B. The default adapter strategy (Path B / OIDC + Authentik) is incompatible with substrates whose UX requires per-login instance flexibility; `@prefig/upact-mastodon` is the first direct adapter shipped under this exception.
+- `SPEC.md §13` non-normative entry for `@prefig/upact-mastodon`.
+- `docs/adapter-shapes.md`: Mastodon column added to the comparison table; Mastodon-specifics section documents the per-login instance discovery + dynamic OAuth client registration pattern; F2 (per-user-session binding) is now empirically observed in two shipped adapters rather than predicted.
+- `docs/cross-adapter-findings.md`: H1 confirmation note for F1/F2/F3/F6/G1 (originally Mastodon-as-analysis findings; now empirically supported by the shipped adapter).
+- `README.md`: `@prefig/upact-mastodon` row added to the Adapters table.
+
+### Changed
+
+- ROADMAP line 13 (adapter strategy): nuanced from blanket "Path B for all OIDC-shaped substrates" to "Path B for stable per-deployment instance configuration; direct adapters for per-login instance flexibility per Decision 12."
+
+### Unchanged (explicit non-changes)
+
+- No changes to `SPEC.md §1` through `§12` (normative spec text).
+- No changes to `src/types.ts`, `src/runtime.ts`, `src/errors.ts`, `src/index.ts`, or any test under `tests/`.
+- No changes to the capability vocabulary (still `'email' | 'recovery'`).
+- No changes to MUST clauses in §7.
+
+The runtime kernel is unchanged from v0.1.1.
+
+---
+
 ## [0.1.1] — 2026-05-01
 
 Additive spec amendments: lifecycle and provenance on `Upactor`. Ships `@prefig/upact-oidc` as the third reference adapter.

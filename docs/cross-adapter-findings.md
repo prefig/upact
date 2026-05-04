@@ -106,7 +106,22 @@ Key tension: `invalid_grant` (refresh token expired) maps to `credential_rejecte
 
 **Classification.** Adapter-author guidance for any OIDC-shaped adapter. The mapping table is in `@prefig/upact-oidc/CONFORMANCE.md`.
 
+## H1. Empirical confirmation of F1, F2, F3, F6, G1 (2026-05-04)
+
+**Observation.** Findings F1 (capability minimality), F2 (per-user-session binding shape), F3 (network-legible vs port-opaque identifier), F6 (lifecycle multiple shapes), and G1 (minimum-scope discipline) were originally derived from Mastodon-as-analysis during the 2026-05-01 design conversation. With the shipped `@prefig/upact-mastodon` v0.1.0 adapter (Decision 12), each finding now has empirical confirmation in production code, not just analysis:
+
+- **F1 confirmed:** `@prefig/upact-mastodon` ships `capabilities: []`. ActivityPub messaging affordances are real but no consumer gates on a `messaging` capability check; the adapter does not declare it.
+- **F2 confirmed:** the per-user-session binding shape is the dominant shape for enforcement-camp adapters with per-user OAuth tokens. Now empirically observed in two shipped adapters (`@prefig/upact-oidc` and `@prefig/upact-mastodon`), not just predicted.
+- **F3 confirmed:** `@prefig/upact-mastodon` holds the actor URL (`https://hachyderm.io/users/alice`) in closure for substrate-side calls; the Upactor exposes only `sha256(actor.url).slice(0, 32)`. The 16-vector reflection test asserts the actor URL is unreachable through any common reflection vector.
+- **F6 confirmed:** Mastodon access tokens never auto-expire. `lifecycle.expires_at: undefined`, `renewable: 'reauth'` is the explicit representation, distinct from "TTL of zero" or "unset by oversight."
+- **G1 confirmed:** `validateScopes` is a runtime guard that throws at construction time on any scope outside the allow-list `['read:accounts', 'profile']`. Default scopes are `['read:accounts']`. The adapter's `CONFORMANCE.md` documents this as the operational form of the privacy-minima discipline.
+
+A future ATProto / Bluesky adapter would re-test the same findings against a different identifier shape (DIDs), different discovery (PLC directory), and a different lifecycle (rotating refresh tokens with DPoP). It would also be the first concrete consumer of the deferred Decision 7 (`continuation`), since DID-based identity is portable across PDS migration.
+
+**Classification.** Confirmation note (no spec change). Recorded for the institutional record.
+
 ## Sources
 
 - **Conversation arc:** 2026-05-01 spec design discussion (covering the move from direct-adapter to IDP-delegation, the self-binding posture, and the cross-substrate spec stress test).
 - **Cross-adapter ce:review:** May 2026 review across upact + upact-supabase + upact-simplex that opened Decisions 3, 4, 6, 7, 8, 9.
+- **Decision 12 closure (2026-05-04):** ROADMAP.md Decision 12 documents the multi-instance fediverse exception to Path B and the three-deployment-shape table. The shipped `@prefig/upact-mastodon` adapter is the empirical confirmation of F1–G1 above.
