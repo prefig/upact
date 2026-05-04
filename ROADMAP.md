@@ -36,7 +36,7 @@ upact is not a replacement for OIDC clients (`auth.js`, `lucia`, `openid-client`
 
 **Posture.** A published conformance test suite (referenced in `SPEC.md §9` as "TBD") that adapter authors run to claim conformance mechanically. Currently only the sixteen-vector reflection test is standardised; the rest of the conformance bar is prose.
 
-**Status.** Targeted for v0.2. Funding (OSA) would accelerate this.
+**Status.** Targeted for v0.2. Funding would accelerate this.
 
 ## Closed
 
