@@ -87,18 +87,23 @@ If your application uses upact, open a PR to add it here.
 - `SPEC.md`: normative specification, v0.1.
 - `src/types.ts`: reference TypeScript types (`Upactor`, `IdentityPort`, `AuthError`, `Capability`, `Session`).
 - `src/runtime.ts`: small runtime kernel. Exports `createSession`, the canonical factory that produces opaque `Session` values per SPEC.md §7.4. Adapter authors should use it rather than maintain their own opaque-wrapper class; the opacity guarantee is centralised here, audited once.
-- `docs/adapter-shapes.md`: type-only sketches of the v0.1 shipped adapters (Supabase, SimpleX, OIDC).
+- `docs/adapter-shapes.md`: type-only sketches of the v0.1 shipped adapters (Supabase, SimpleX, OIDC, Mastodon).
 - `docs/cross-adapter-findings.md`: cross-substrate observations that shaped the spec.
 - `examples/sveltekit-supabase/`: minimal SvelteKit + Supabase integration showing the three key wiring points: hook, type augmentation, and capability-gated page load.
-- `CONTRIBUTING.md`: the five-test contributor audit, AI-Involvement trailer convention.
-- `GOVERNANCE.md`: v0.x maintainer posture and v1.0 working-group target.
 - `CONFORMANCE.md`: conformance statement template with filled-in examples for both v0.1 adapters.
 - `CHANGELOG.md`: per-version change record.
-- `ROADMAP.md`: open and closed decisions.
 
 ## Status
 
 v0.1.2. Four reference adapters shipped (OIDC added in 0.1.1, Mastodon added in 0.1.2). Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
+
+v0.x is maintained by Theodore Evans. Issues welcome at [github.com/prefig/upact/issues](https://github.com/prefig/upact/issues). At v1.0 the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors (see `SPEC.md` §11).
+
+## Commit conventions
+
+Commits with substantive AI involvement carry an `AI-Involvement: <tier>` trailer recording the character of involvement (`autonomous` / `authored` / `collaborative` / `assisted` / `commit-message-only`), so readers can calibrate the provenance of normative content. The convention is most important on `SPEC.md`, `src/types.ts`, and capability-vocabulary changes.
+
+upact does not use `Co-Authored-By:` for AI authorship. `Co-Authored-By:` claims human co-authorship; `AI-Involvement` records the character of involvement instead.
 
 ## Licence
 

@@ -1,12 +1,12 @@
 # Cross-adapter findings
 
-Substrate observations that informed upact's spec text and roadmap, surfaced during cross-adapter validation work. Each finding cites the context that produced it and notes whether it lands as a roadmap Decision, a clarification for the manual SPEC pass, or guidance for adapter authors.
+Substrate observations that informed upact's spec text, surfaced during cross-adapter validation work. Each finding cites the context that produced it and notes whether it lands as a Decision, a clarification for the manual SPEC pass, or guidance for adapter authors.
 
 ## How to read this
 
 These are observations and patterns derived from working through multiple substrates (Supabase, SimpleX, and the Mastodon-as-OIDC analysis that motivated the Path B IDP-delegation architecture). Findings are classified by where they land:
 
-- **Roadmap-relevant** — should land as a closed Decision or evidence appended to an existing open Decision in `ROADMAP.md`.
+- **Decision-register-relevant** — should land as a closed Decision or evidence appended to an existing open Decision in `SPEC.md` §12.
 - **Spec-relevant** — clarification or amendment for the manual `SPEC.md` revision pass.
 - **Adapter-author guidance** — recommended pattern, not normative spec text.
 
@@ -124,4 +124,4 @@ A future ATProto / Bluesky adapter would re-test the same findings against a dif
 
 - **Conversation arc:** 2026-05-01 spec design discussion (covering the move from direct-adapter to IDP-delegation, the self-binding posture, and the cross-substrate spec stress test).
 - **Cross-adapter ce:review:** May 2026 review across upact + upact-supabase + upact-simplex that opened Decisions 3, 4, 6, 7, 8, 9.
-- **Decision 12 closure (2026-05-04):** ROADMAP.md Decision 12 documents the multi-instance fediverse exception to Path B and the three-deployment-shape table. The shipped `@prefig/upact-mastodon` adapter is the empirical confirmation of F1–G1 above.
+- **Decision 12 closure (2026-05-04):** the multi-instance fediverse exception to Path B (closed in `SPEC.md` §12; deployment-shape table in `docs/adapter-shapes.md`). The shipped `@prefig/upact-mastodon` adapter is the empirical confirmation of F1–G1 above.

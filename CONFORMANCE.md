@@ -133,7 +133,7 @@ Anonymous / pseudonymous coordination. The SimpleX substrate has no central dire
 
 `[]` — no capabilities declared for v0.1.
 
-The SimpleX substrate affords messaging (`sendMessage`, `receiveMessage`) and peer-to-peer matching. Neither is surfaced through the upact port at v0.1: no shipped consumer gates on a `messaging` or `p2p_matching` capability check. Per the minimum-viable discipline (CONTRIBUTING.md), capabilities land when a concrete consumer surfaces them.
+The SimpleX substrate affords messaging (`sendMessage`, `receiveMessage`) and peer-to-peer matching. Neither is surfaced through the upact port at v0.1: no shipped consumer gates on a `messaging` or `p2p_matching` capability check. Capabilities land when a shipped consumer needs them, per `SPEC.md` §5.2.
 
 ## AuthError mapping table
 

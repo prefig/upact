@@ -1,6 +1,6 @@
 # Adapter shape sketches
 
-> **Status (v0.1.2):** sketches of substrates against the upact `IdentityPort` contract. **Additional substrate sketches land alongside their shipped adapter, not before** — speculative substrates from earlier drafts (Convene, Reticulum, fediverse-DID-based) were removed by the audit (CONTRIBUTING.md): no shipped adapter, no concrete consumer. Sketches return when an adapter is genuinely on the way.
+> **Status (v0.1.2):** sketches of substrates against the upact `IdentityPort` contract. Substrate sketches land alongside their shipped adapter. Sketches return when an adapter is genuinely on the way.
 
 ## Why this document exists
 
@@ -13,7 +13,7 @@ The check is type-only. We sketch the *signatures* each adapter exposes, not the
 - **Pre-conforming substrates** — e.g. SimpleX (no central directory; anonymous unidirectional queues). The substrate's natural shape is already aligned with upact's MUST-NOTs. Adapters are mostly *type translation*, not architectural enforcement — thin packages.
 - **Enforcement substrates** — e.g. Supabase Auth, OIDC providers (Phase C). The substrate exposes far more than upact permits; the adapter does the work of stripping, hiding, and capability-bounding — thicker packages.
 
-`@prefig/upact-supabase` is the worked example of the *enforcement* case: Supabase's `User` shape exposes email, phone, JWT claims, `app_metadata`, `user_metadata`, all of which the adapter strips or hides. `@prefig/upact-simplex` is the worked example of the *pre-conforming* case: the SimpleX daemon's local profile carries `localDisplayName`, `agentUserId` (UUID), and a few status flags; the adapter hashes the UUID, sanitises the display name, and that's roughly it. `@prefig/upact-oidc` is the enforcement case for any OIDC-compliant IDP. `@prefig/upact-mastodon` is the enforcement case for Mastodon-API-compatible servers with per-login instance discovery (the multi-instance fediverse exception to Path B; see ROADMAP Decision 12).
+`@prefig/upact-supabase` is the worked example of the *enforcement* case: Supabase's `User` shape exposes email, phone, JWT claims, `app_metadata`, `user_metadata`, all of which the adapter strips or hides. `@prefig/upact-simplex` is the worked example of the *pre-conforming* case: the SimpleX daemon's local profile carries `localDisplayName`, `agentUserId` (UUID), and a few status flags; the adapter hashes the UUID, sanitises the display name, and that's roughly it. `@prefig/upact-oidc` is the enforcement case for any OIDC-compliant IDP. `@prefig/upact-mastodon` is the enforcement case for Mastodon-API-compatible servers with per-login instance discovery (the multi-instance fediverse exception to Path B; see the deployment-shape table below).
 
 ## Substrates compared (v0.1.2 shipped reality)
 
@@ -118,3 +118,15 @@ Key decisions:
 - 16-vector reflection test passes; substrate state (access token, client credentials, instance origin, actor URL, cookie secret) lives entirely in closure.
 
 This is the first adapter in the project where F2's per-user-session binding shape is empirically observed in shipped code rather than predicted from analysis. The next likely candidate is a Bluesky / ATProto adapter, where DID-based identity portability would also exercise the deferred Decision 7 (`continuation`).
+
+## Choosing between OIDC and Mastodon adapters
+
+Path B (the OIDC adapter brokered through Authentik / Keycloak / ZITADEL) is the right answer for OIDC-shaped substrates with stable per-deployment instance configuration. It is the wrong answer for substrates whose UX requires per-login instance flexibility: each user picks their home instance at login time, and the instance is not knowable until the user types it. Mastodon and the rest of the fediverse fit this shape; Authentik's federation-source registration is per-instance and admin-mediated, which cannot be done at login time for an arbitrary instance.
+
+| Deployment | Adapter | Why |
+|---|---|---|
+| App authenticates against ONE fixed instance (your-org.social) | `@prefig/upact-oidc` + Authentik with that instance preregistered | Path B works; smallest surface |
+| App authenticates against ANY user-chosen Mastodon instance | `@prefig/upact-mastodon` (the direct adapter) | Path B's preregistration loop is incompatible with arbitrary-instance UX |
+| App authenticates against a closed list of partner instances | Either; lean `@prefig/upact-oidc` unless the partner list churns | Path B if list is stable; direct adapter if list is dynamic |
+
+`@prefig/upact-mastodon` is the first direct adapter of this shape. A future `@prefig/upact-atproto` (Bluesky) adapter would also qualify: DID-based identity is portable across PDSes, and the per-login resolution path is even more inherent. This is the multi-instance fediverse exception to Path B; pre-conforming substrates (SimpleX, Reticulum) are also direct adapters but for different reasons (the substrate's natural shape is already minimal, not because of per-login instance flexibility).
