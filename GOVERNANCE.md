@@ -4,10 +4,6 @@
 
 Theodore Evans is the maintainer. Decisions about the spec, capability vocabulary, and normative content are made by the maintainer, informed by adapter authors and application developers through issues and PRs.
 
-The inverse-kinematics principle (see `CONTRIBUTING.md`) is the primary constraint on spec growth. The maintainer applies it consistently; so should anyone making a case for a change.
-
-Decisions are recorded in commits to `SPEC.md` and `ROADMAP.md`, not in issue threads. Issue threads carry context; the commit is the decision.
-
 ## v1.0 (target)
 
 Decisions about the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors at v1.0. A *conforming-adapter author* is an organisation or individual who:
