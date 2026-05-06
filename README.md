@@ -97,7 +97,7 @@ If your application uses upact, open a PR to add it here.
 
 v0.1.2. Four reference adapters shipped (OIDC added in 0.1.1, Mastodon added in 0.1.2). Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
 
-v0.x is maintained by Theodore Evans. Issues welcome at [github.com/prefig/upact/issues](https://github.com/prefig/upact/issues). At v1.0 the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors (see `SPEC.md` §11).
+upact is maintained by a group of maintainers. Issues welcome at [github.com/prefig/upact/issues](https://github.com/prefig/upact/issues). At v1.0 the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors (see `SPEC.md` §11).
 
 ## Commit conventions
 
