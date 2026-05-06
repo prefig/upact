@@ -4,7 +4,7 @@
 **Status:** Working draft. Public release. Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
 **License:** CC BY 4.0
 
-> **A note on authorship.** v0.1 of this specification was AI-co-authored under the project's `AI-Involvement` trailer convention (see `CONTRIBUTING.md`). The transparency posture is preserved as disclosure rather than authorship-purity. Every commit touching normative content carries the trailer; readers can audit the contribution lineage in `git log`. Future revisions may include a maintainer-only re-authoring pass; for now the disclosure trail is the binding mechanism.
+> **A note on authorship.** v0.1 of this specification was AI-co-authored. Commits touching normative content carry an `AI-Involvement: <tier>` trailer recording the character of involvement (`autonomous` / `authored` / `collaborative` / `assisted` / `commit-message-only`). The contribution lineage is auditable in `git log`. Future revisions may include a maintainer-only re-authoring pass.
 
 ---
 
@@ -80,7 +80,7 @@ interface IdentityLifecycle {
 }
 ```
 
-Five fields, three of which are optional. The shape is intentionally minimal per the contributor audit (CONTRIBUTING.md). `lifecycle` and `provenance` were deferred from the initial draft and brought back by the OIDC adapter (Phase C, v0.1.1) — concrete consumer need surfaces them. See §12 for the remaining deferred-decisions register.
+Five fields, three of which are optional. `lifecycle` and `provenance` were deferred from the initial draft and brought back by the OIDC adapter (Phase C, v0.1.1) when it concretely needed them. See §12 for the remaining deferred-decisions register.
 
 ### §4.1 `id`
 
@@ -123,7 +123,7 @@ Capabilities are self-described provider features. The application uses capabili
 | `email` | The provider can deliver email to this identity. |
 | `recovery` | The provider supports identity recovery flows. |
 
-**The vocabulary is intentionally minimal.** The audit (see CONTRIBUTING.md) found these two are the capabilities that have shipped consumers — the Supabase reference adapter declares them; dyad's UI gating consumes them for password-reset and invitation flows. Capabilities present in earlier drafts (`messaging`, `p2p_matching`, `presence_renewal`, `threshold_attestation`, `push`, `webauthn`) were not declared by any shipped consumer in this version and were deferred. Adapter authors do not pre-emptively expand the vocabulary; new capabilities land via §5.2 extension when concrete consumers surface.
+**The vocabulary is intentionally minimal.** These two capabilities have shipped consumers: the Supabase reference adapter declares them; dyad's UI gates on them for password-reset and invitation flows. New capabilities land via §5.2 extension when shipped adapters need them.
 
 This minimum-viable discipline is itself part of the binding mechanism. A capability vocabulary that grew speculatively would dilute the contract: applications would gate on capabilities that no substrate genuinely supports, providers would declare capabilities to look feature-rich, and the whole signal would erode. Keeping the vocabulary small and concrete-need-driven keeps the binding genuine.
 
@@ -289,11 +289,11 @@ This specification is versioned. v0.1 is the first public draft. Breaking change
 
 Capabilities present in §5.1 are normative for v0.1. Capabilities outside §5.1 are advisory and follow registry conventions to be specified in v0.2. The registry MAY accept new capabilities on demonstrated implementation by at least two independent providers AND demonstrated consumption by at least one application.
 
-Governance posture: v0.x decisions are made by the maintainer. By v1.0, decisions about the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors. See `GOVERNANCE.md`.
+Governance posture: v0.x decisions are made by the maintainer (Theodore Evans). At v1.0, decisions about the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors. A *conforming-adapter author* is an organisation or individual who maintains a published `@prefig/upact-*` package that passes the sixteen-vector reflection test, has shipped a `CONFORMANCE.md` against a specific spec version, and has actively maintained the adapter (a PR or release in the last twelve months). The working group operates on rough consensus; when rough consensus is absent, the maintainer retains a casting vote. Capability-vocabulary additions and MUST-clause changes after v1.0 require a working-group decision plus implementation by ≥2 independent conforming adapters and consumption by ≥1 shipped application; MUST-clause changes additionally require a migration period during which the old behaviour remains valid.
 
 ## §12. Deferred decisions (the register)
 
-The audit (CONTRIBUTING.md) trimmed v0.1 to the minimum-viable surface that shipped consumers concretely need. Items below are deferred — not abandoned, just held until a concrete consumer surfaces or a shipped adapter forces the question.
+v0.1 was scoped to what shipped adapters need. Items below were proposed but did not ship in v0.1 because no adapter required them yet. They reactivate when a shipped adapter forces the question.
 
 | Decision | Substance | Why deferred from v0.1 |
 |---|---|---|
@@ -307,7 +307,7 @@ The audit (CONTRIBUTING.md) trimmed v0.1 to the minimum-viable surface that ship
 | ~~**G1 — OIDC scope discipline**~~ | **Closed v0.1.1.** `@prefig/upact-oidc` ships `validateScopes` runtime guard and documents the scope allow-list in its conformance statement. | Phase C adapter ships with runtime enforcement. |
 | **Convene + Reticulum substrate sketches in `docs/adapter-shapes.md`** | Speculative entries removed | No shipped adapter, no concrete consumer. Sketches return alongside their adapter. |
 
-The audit checklist in CONTRIBUTING.md names the five tests every Decision passes (concrete-need / minimum-viable / substrate-agnosticism / binding-integrity / disclosure). Future contributors apply the same checklist; this register records the exit conditions for each deferred Decision.
+A Decision exits §12 when a shipped adapter has a concrete need for it (substrate-agnosticism: the change makes sense across at least one enforcement-camp and one pre-conforming substrate), the change preserves the §7 MUST NOTs (binding-integrity), and the spec amendments propagate to the §9 conformance template, the §10 security considerations, and this register where applicable (disclosure).
 
 ## §13. Non-normative appendix — provider sketches
 
@@ -317,7 +317,7 @@ Brief sketches of providers shipped or deferred against this port.
 
 - **`@prefig/upact-supabase`** — Supabase Auth substrate. Capabilities: `email`, `recovery` for users with email; `recovery` only for those without. Identity stable for the account lifetime; renewable via password reset. The port hides email, password, magic-links, JWT claims, `app_metadata`, `user_metadata` from the application; `capabilities.has('email')` gates email-bound features.
 
-- **`@prefig/upact-simplex`** — SimpleX Chat substrate (anonymous unidirectional queues, no central directory). Capabilities: `[]` (no `email`, no `recovery`; substrate affordances for messaging and p2p-matching are real but documented in the adapter README rather than declared as capabilities — see §5 / CONTRIBUTING.md audit). Identity stable per loaded profile; renewable by re-loading the profile. No email, no recovery, no central user database.
+- **`@prefig/upact-simplex`** — SimpleX Chat substrate (anonymous unidirectional queues, no central directory). Capabilities: `[]` (no `email`, no `recovery`; substrate affordances for messaging and p2p-matching are real but documented in the adapter README rather than declared as capabilities, since no shipped consumer gates on them). Identity stable per loaded profile; renewable by re-loading the profile. No email, no recovery, no central user database.
 
 **Shipped at v0.1.1:**
 
@@ -325,10 +325,10 @@ Brief sketches of providers shipped or deferred against this port.
 
 **Shipped at v0.1.2:**
 
-- **`@prefig/upact-mastodon`** — direct Mastodon REST API adapter (per-login instance discovery, dynamic OAuth client registration, no token expiry). Substrate is "any Mastodon-API-compatible server"; Mastodon proper validated, forks (Pleroma, Akkoma, GoToSocial) MAY work via API compatibility but are not validated at v0.1.0. Capabilities: `[]`. Lifecycle: `expires_at: undefined`, `renewable: 'reauth'` (Mastodon access tokens never auto-expire per F6). Provenance: `{ substrate: 'mastodon', instance: <origin> }`. Identifier derivation: `sha256(actor.url)[:32]` per F3. Exists alongside `@prefig/upact-oidc` rather than replacing it: deployments with a fixed instance keep Path B (OIDC + Authentik); deployments wanting fediverse-flexibility (any user-chosen instance) use this package. See ROADMAP.md Decision 12 for the strategy nuance.
+- **`@prefig/upact-mastodon`** — direct Mastodon REST API adapter (per-login instance discovery, dynamic OAuth client registration, no token expiry). Substrate is "any Mastodon-API-compatible server"; Mastodon proper validated, forks (Pleroma, Akkoma, GoToSocial) MAY work via API compatibility but are not validated at v0.1.0. Capabilities: `[]`. Lifecycle: `expires_at: undefined`, `renewable: 'reauth'` (Mastodon access tokens never auto-expire per F6). Provenance: `{ substrate: 'mastodon', instance: <origin> }`. Identifier derivation: `sha256(actor.url)[:32]` per F3. Exists alongside `@prefig/upact-oidc` rather than replacing it: deployments with a fixed instance keep Path B (OIDC + Authentik); deployments wanting fediverse-flexibility (any user-chosen instance) use this package. See `docs/adapter-shapes.md` for the deployment-shape table.
 
 The application code does not change across these. The deployment chooses the provider; the port carries the rest.
 
 ---
 
-*Document version: 0.1.2. Audit-trimmed and AI-co-authored under disclosure 2026-05-01. See `ROADMAP.md` for the full decision lineage and `CONTRIBUTING.md` for the audit discipline.*
+*Document version: 0.1.2. AI-co-authored under disclosure (see authorship note above). Decision lineage is in `git log` and the §12 register.*

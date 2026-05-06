@@ -4,6 +4,19 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ---
 
+## [Unreleased]
+
+### Removed
+
+- `CONTRIBUTING.md`, `GOVERNANCE.md`, `ROADMAP.md`. Load-bearing content folded into `README.md` (maintenance posture, commit conventions including the `Co-Authored-By:` exclusion) and `SPEC.md` (working-group definition self-contained in §11; authorship note self-contained at the top). Decision lineage lives in `git log` and the `SPEC.md` §12 register. The Decision 12 deployment-shape table moved to `docs/adapter-shapes.md`. The repo's earlier institutional shape exceeded what a single-maintainer experiment in v0.x earns.
+
+### Changed
+
+- `SPEC.md`: stripped audit-framing references in §4, §5.1, §11, §12, §13 prose, leaving the substantive content intact. The footer no longer points at deleted documents.
+- `package.json` `files` array: drops the deleted documents from the published package.
+
+---
+
 ## [0.1.2] — 2026-05-04
 
 Documentation-only release in this package. The substantive change is a new external adapter (`@prefig/upact-mastodon`) shipped separately.
