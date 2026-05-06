@@ -2,6 +2,29 @@
 
 A typed architectural contract between a social application and any identity provider. The application sees a small, capability-negotiated `Upactor`; the substrate (Supabase Auth, OIDC, peer-to-peer presence, etc.) stays behind the port.
 
+```mermaid
+flowchart LR
+    subgraph behind["Substrate (behind the port)"]
+        direction TB
+        b1[email]
+        b2[phone]
+        b3[IP]
+        b4[JWT claims]
+        b5[app_metadata · user_metadata]
+    end
+
+    subgraph crosses["Across the port (Upactor)"]
+        direction TB
+        c1[id]
+        c2[capabilities]
+        c3["display_hint?"]
+        c4["lifecycle?"]
+        c5["provenance?"]
+    end
+
+    behind -->|adapter strips| crosses
+```
+
 ## Posture
 
 upact is named for the Ulysses pact that adopters make when building privacy-first social technologies that are architecturally hostile to extractive practices.
