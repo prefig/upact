@@ -73,6 +73,7 @@ try {
 | `@prefig/upact-simplex` | SimpleX Chat daemon | Pre-conforming | v0.1.0 shipped |
 | `@prefig/upact-oidc` | Any OIDC-compliant IDP (Dex, Authentik, Keycloak, ZITADEL) | Enforcement | v0.1.0 shipped |
 | `@prefig/upact-mastodon` | Mastodon REST API (any user-chosen instance) | Enforcement | v0.1.0 shipped |
+| `@prefig/upact-ember` | ember (temporary scope membership renewed in presence) | Pre-conforming | v0.1.0 shipped — first `renewable: 'represence'` adapter |
 
 ## Adopters
 
