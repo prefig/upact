@@ -14,6 +14,8 @@ export type {
 	IdentityLifecycle,
 	Upactor,
 	UserIdentity, // deprecated alias for v0.1.x compat; removed in v0.2
+	PresentationRequest,
+	Presentation,
 	Session,
 	AuthError,
 	AuthErrorCode,
