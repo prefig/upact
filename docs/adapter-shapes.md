@@ -10,8 +10,8 @@ The check is type-only. We sketch the *signatures* each adapter exposes, not the
 
 ### Substrates fall into two camps
 
-- **Pre-conforming substrates** — e.g. SimpleX (no central directory; anonymous unidirectional queues). The substrate's natural shape is already aligned with upact's MUST-NOTs. Adapters are mostly *type translation*, not architectural enforcement — thin packages.
-- **Enforcement substrates** — e.g. Supabase Auth, OIDC providers (Phase C). The substrate exposes far more than upact permits; the adapter does the work of stripping, hiding, and capability-bounding — thicker packages.
+- **Pre-conforming substrates**: e.g. SimpleX (no central directory; anonymous unidirectional queues). The substrate's natural shape is already aligned with upact's MUST-NOTs. Adapters are mostly *type translation*, not architectural enforcement (thin packages).
+- **Enforcement substrates**: e.g. Supabase Auth, OIDC providers (Phase C). The substrate exposes far more than upact permits; the adapter does the work of stripping, hiding, and capability-bounding (thicker packages).
 
 `@prefig/upact-supabase` is the worked example of the *enforcement* case: Supabase's `User` shape exposes email, phone, JWT claims, `app_metadata`, `user_metadata`, all of which the adapter strips or hides. `@prefig/upact-simplex` is the worked example of the *pre-conforming* case: the SimpleX daemon's local profile carries `localDisplayName`, `agentUserId` (UUID), and a few status flags; the adapter hashes the UUID, sanitises the display name, and that's roughly it. `@prefig/upact-oidc` is the enforcement case for any OIDC-compliant IDP. `@prefig/upact-mastodon` is the enforcement case for Mastodon-API-compatible servers with per-login instance discovery (the multi-instance fediverse exception to Path B; see the deployment-shape table below).
 
@@ -92,11 +92,11 @@ The factory pattern is the operational form of §7.5: there is no instance prope
 
 ## OIDC adapter specifics (v0.1.1 shipped)
 
-The IDP-delegation pattern (Path B): the OIDC adapter's substrate is "any OIDC-compliant IDP" — Authentik, Keycloak, ZITADEL, or Dex (local dev rig). Mastodon, GitHub, Google, Auth0 etc. become *upstream* OAuth providers federated through the IDP, not direct upact substrates.
+The IDP-delegation pattern (Path B): the OIDC adapter's substrate is "any OIDC-compliant IDP": Authentik, Keycloak, ZITADEL, or Dex (local dev rig). Mastodon, GitHub, Google, Auth0 etc. become *upstream* OAuth providers federated through the IDP, not direct upact substrates.
 
 Key decisions:
 - Scope policy enforces `email`/`phone`/`address`/`groups` exclusion at construction time (throws immediately).
-- `id` = SHA-256(`sub@iss`)[:32] — deterministic, not reversible, stable across refresh rotations.
+- `id` = SHA-256(`sub@iss`)[:32]: deterministic, not reversible, stable across refresh rotations.
 - Tokens stored in HMAC-SHA256 signed session cookie; never on the `Session` or `Upactor`.
 - `issueRenewal` is OPTIONAL (Decision 9): returns `null` if no refresh token present.
 - Two out-of-port extensions: `buildAuthRedirect()` (init phase) and `buildLogoutRedirect()` (logout).

@@ -68,7 +68,7 @@ This adapter passes a sixteen-vector reflection test (`tests/back-channel.test.t
 
 ## Substrate
 
-Supabase Auth — a managed PostgreSQL-backed identity service. `auth.users` is the substrate user record. Enforcement-camp substrate: the Supabase `User` object exposes email, phone, JWT claims, `app_metadata`, and `user_metadata`; the adapter strips all of these except what is needed to populate the three `Upactor` fields.
+Supabase Auth: a managed PostgreSQL-backed identity service. `auth.users` is the substrate user record. Enforcement-camp substrate: the Supabase `User` object exposes email, phone, JWT claims, `app_metadata`, and `user_metadata`; the adapter strips all of these except what is needed to populate the three `Upactor` fields.
 
 ## Threat model
 
@@ -76,8 +76,8 @@ Casual coordination. Supabase Auth is a centralised service operated by Supabase
 
 ## Capabilities self-declared
 
-`['email', 'recovery']` — for users with a confirmed email address (non-empty `user.email`).
-`[]` — for users without a confirmed email address.
+`['email', 'recovery']`: for users with a confirmed email address (non-empty `user.email`).
+`[]`: for users without a confirmed email address.
 
 Concrete consumer: dyad M1 UI gates on `capabilities.has('email')` to show or hide email-related settings. `recovery` is bundled with `email` because the same email address that identifies the user is the recovery channel; they are not independently affords.
 
@@ -109,7 +109,7 @@ None.
 
 ## Identifier derivation
 
-`Upactor.id` is set directly from `user.id` — the Supabase Auth UUID. Supabase UUIDs are opaque random identifiers (`gen_random_uuid()`); they are not derivable from user-supplied identifiers (email, phone). No hashing is applied. The raw UUID is not email-shaped and carries no information about the user visible at the application layer.
+`Upactor.id` is set directly from `user.id` (the Supabase Auth UUID). Supabase UUIDs are opaque random identifiers (`gen_random_uuid()`); they are not derivable from user-supplied identifiers (email, phone). No hashing is applied. The raw UUID is not email-shaped and carries no information about the user visible at the application layer.
 
 ---
 
@@ -123,7 +123,7 @@ None.
 
 ## Substrate
 
-SimpleX Chat daemon — a local IPC process exposing a JSON command API. Pre-conforming substrate: the SimpleX local profile carries `localDisplayName`, `agentUserId` (UUID), and a handful of status flags. There is no central directory; profiles are application-scoped and anonymous. The adapter is thin — mostly type translation.
+SimpleX Chat daemon: a local IPC process exposing a JSON command API. Pre-conforming substrate: the SimpleX local profile carries `localDisplayName`, `agentUserId` (UUID), and a handful of status flags. There is no central directory; profiles are application-scoped and anonymous. The adapter is thin: mostly type translation.
 
 ## Threat model
 
@@ -131,7 +131,7 @@ Anonymous / pseudonymous coordination. The SimpleX substrate has no central dire
 
 ## Capabilities self-declared
 
-`[]` — no capabilities declared for v0.1.
+`[]`: no capabilities declared for v0.1.
 
 The SimpleX substrate affords messaging (`sendMessage`, `receiveMessage`) and peer-to-peer matching. Neither is surfaced through the upact port at v0.1: no shipped consumer gates on a `messaging` or `p2p_matching` capability check. Capabilities land when a shipped consumer needs them, per `SPEC.md` §5.2.
 
@@ -161,4 +161,4 @@ None.
 
 ## Identifier derivation
 
-`Upactor.id` is derived from `user.agentUserId` (a UUID string) via `SHA-256(agentUserId).slice(0, 32)` — the first 32 hex characters of the SHA-256 digest. The derivation is deterministic per `agentUserId` (stable across sessions for the same profile) and not reversible from the application layer. The hash is implemented with the Web Crypto API (`crypto.subtle.digest`).
+`Upactor.id` is derived from `user.agentUserId` (a UUID string) via `SHA-256(agentUserId).slice(0, 32)`: the first 32 hex characters of the SHA-256 digest. The derivation is deterministic per `agentUserId` (stable across sessions for the same profile) and not reversible from the application layer. The hash is implemented with the Web Crypto API (`crypto.subtle.digest`).
