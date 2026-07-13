@@ -74,6 +74,7 @@ try {
 | `@prefig/upact-oidc` | Any OIDC-compliant IDP (Dex, Authentik, Keycloak, ZITADEL) | Enforcement | v0.1.0 shipped |
 | `@prefig/upact-mastodon` | Mastodon REST API (any user-chosen instance) | Enforcement | v0.1.0 shipped |
 | `@prefig/upact-ember` | ember (temporary scope membership renewed in presence) | Pre-conforming | v0.1.0 shipped; first `renewable: 'represence'` adapter |
+| `@prefig/upact-eudi` | EUDI wallet (OpenID4VP 1.0 / HAIP verifier, SD-JWT VC German PID) | Enforcement | v0.1.0 shipped; declared attribute list (CIR (EU) 2025/848) enforced at construction |
 
 ## Adopters
 
