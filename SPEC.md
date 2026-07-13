@@ -80,7 +80,7 @@ interface IdentityLifecycle {
 }
 ```
 
-Five fields, three of which are optional. `lifecycle` and `provenance` were deferred from the initial draft and brought back by the OIDC adapter (Phase C, v0.1.1) when it concretely needed them. See §12 for the remaining deferred-decisions register.
+Most fields are optional. `lifecycle` and `provenance` were deferred from the initial draft and brought back by the OIDC adapter (Phase C, v0.1.1) when it concretely needed them. See §12 for the remaining deferred-decisions register.
 
 ### §4.1 `id`
 
@@ -199,7 +199,7 @@ interface AuthError {
 
 Providers MUST return one of these codes; substrate-specific detail goes in `message`. Applications branch on `code` for substrate-portable error handling. Adapter packages document their per-substrate mapping (which substrate errors map to which code) in their conformance statement (§10).
 
-Adapters may emit a subset of the vocabulary. Codes that distinguish identity-existence from credential-validity (notably `identity_unavailable`) are reserved for substrates that surface that distinction; the v0.1 reference adapters do not — Supabase conflates "no such user" with "wrong password" as credential-stuffing resistance, OIDC surfaces failures as token errors. Application code can branch on the full vocabulary; some branches will be unreachable for some adapters.
+Adapters may emit a subset of the vocabulary. Codes that distinguish identity-existence from credential-validity (notably `identity_unavailable`) are reserved for substrates that surface that distinction; the v0.1 reference adapters do not — Supabase conflates "no such user" with "wrong password" as user-enumeration resistance, OIDC surfaces failures as token errors. Application code can branch on the full vocabulary; some branches will be unreachable for some adapters.
 
 ## §7. Privacy minima (normative MUST NOT clauses)
 
@@ -269,7 +269,7 @@ A provider claiming conformance:
 4. SHALL pass a sixteen-vector reflection test on the adapter instance (per §7.5) and document the test's existence in the conformance statement.
 5. SHALL pass the conformance test suite associated with its claimed version (test suite TBD; targeted for v0.2 or a funded follow-up).
 
-A `CONFORMANCE.md` template ships in this repository with one filled-in example (the Supabase reference adapter).
+A `CONFORMANCE.md` template ships in this repository with filled-in examples for the Supabase and SimpleX reference adapters.
 
 ## §10. Security considerations
 

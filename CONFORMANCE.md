@@ -93,7 +93,7 @@ Concrete consumer: dyad M1 UI gates on `capabilities.has('email')` to show or hi
 | Malformed substrate User (no `id` field) | `auth_failed` |
 | Unknown error | `auth_failed` |
 
-Note: Supabase conflates "user not found" with "wrong password" as credential-stuffing resistance. Both surface as `credential_rejected`. `identity_unavailable` is not emitted by this adapter.
+Note: Supabase conflates "user not found" with "wrong password" as user-enumeration resistance. Both surface as `credential_rejected`. `identity_unavailable` is not emitted by this adapter.
 
 ## Session opacity
 

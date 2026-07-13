@@ -19,7 +19,7 @@ upact is not a replacement for OIDC clients (`auth.js`, `lucia`, `openid-client`
 These benefits accrue to every application using upact, regardless of motivation:
 
 - **Design discipline.** Structural limits on what you can know force design principles and features that don't depend on data you shouldn't have.
-- **A small, well-defined identity surface.** The `Upactor` type has three fields. Substrate-shaped User types typically have >=30.
+- **A small, well-defined identity surface.** The `Upactor` type carries a handful of fields; substrate-shaped User types carry dozens.
 - **Privacy guarantees at call sites that use the port.** Code that uses `currentUpactor` cannot accidentally include email in logs, metrics, error reports, SSR-rendered HTML, or analytics events. Code that calls the substrate directly remains a code-review concern; treating substrate-library imports as a marked, audited boundary (e.g. only allowed in the substrate seam, forbidden in service code) extends the guarantee to the rest of the application.
 - **Audited opacity primitives.** Sessions cannot be unwrapped via `JSON.stringify`, `structuredClone`, `util.inspect`, or other inspection vectors. The runtime kernel is centrally tested across sixteen vectors; every conforming adapter inherits the guarantee.
 - **Swap identity providers without re-architecting the identity layer.** The port carries your privacy posture across providers. Switch from Supabase Auth to an OIDC-brokered provider, and the application's identity-shaped call sites are unchanged. Substrate concerns outside identity (data access, RLS, jobs, admin tooling) remain substrate-coupled by design; upact does not abstract data access.
