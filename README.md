@@ -1,6 +1,6 @@
 # upact
 
-A typed architectural contract between a social application and any identity provider. The application sees a small, capability-negotiated `Upactor`; the substrate (Supabase Auth, OIDC, peer-to-peer presence, etc.) stays behind the port.
+A provider-agnostic identity port for TypeScript web apps. The application sees a small, capability-negotiated `Upactor`; the substrate (Supabase Auth, OIDC, an identity wallet, peer-to-peer presence) stays behind the port.
 
 ## Posture
 
@@ -12,7 +12,7 @@ The port does not block pivots reachable through direct substrate-library import
 
 The constraint also shapes design. When the application cannot know a user's email, you build features that don't need it. This provides friction against reflexes inherited from an extraction- and retention-shaped social media ecosystem.
 
-upact is not a replacement for OIDC clients (`auth.js`, `lucia`, `openid-client`), identity-broker IDPs (Authentik, Keycloak, ZITADEL), or identity protocols (DIDs, Verifiable Credentials). It is the typed-contract layer that sits on top of these substrates and provides a contract on what the application is permitted to know and what it has bound itself out of knowing.
+upact sits on top of OIDC clients (`auth.js`, `lucia`, `openid-client`), identity-broker IDPs (Authentik, Keycloak, ZITADEL), and identity protocols (DIDs, Verifiable Credentials): a typed-contract layer over what the application is permitted to know and what it has bound itself out of knowing.
 
 ## Why upact
 
@@ -25,7 +25,7 @@ These benefits accrue to every application using upact, regardless of motivation
 - **Swap identity providers without re-architecting the identity layer.** The port carries your privacy posture across providers. Switch from Supabase Auth to an OIDC-brokered provider, and the application's identity-shaped call sites are unchanged. Substrate concerns outside identity (data access, RLS, jobs, admin tooling) remain substrate-coupled by design; upact does not abstract data access.
 - **A ready answer for compliance, legal, and regulator questions about user data.** When a third party asks "what does your application know about users?", the conformance statement documents what the adapter returns. It narrows but does not replace an application-level audit, since application code remains free to import substrate libraries directly per §7.5.
 
-## Limits: what upact does not prevent
+## Limits
 
 upact closes the identity boundary architecturally. Application-level misuse of the substrate is not closed:
 
@@ -73,6 +73,9 @@ try {
 | `@prefig/upact-simplex` | SimpleX Chat daemon | Pre-conforming | v0.1.0 shipped |
 | `@prefig/upact-oidc` | Any OIDC-compliant IDP (Dex, Authentik, Keycloak, ZITADEL) | Enforcement | v0.1.0 shipped |
 | `@prefig/upact-mastodon` | Mastodon REST API (any user-chosen instance) | Enforcement | v0.1.0 shipped |
+| `@prefig/upact-ember` | ember presence credentials (offline verifier) | Pre-conforming | v0.1.0 shipped |
+| `@prefig/upact-eudi` | EUDI wallet, OpenID4VP relying party | Enforcement | v0.1.0 shipped |
+| `@prefig/upact-atproto` | ATProto / Bluesky (DID-based OAuth) | Enforcement | v0.1.0 shipped |
 
 ## Adopters
 
@@ -87,17 +90,17 @@ If your application uses upact, open a PR to add it here.
 - `SPEC.md`: normative specification, v0.1.
 - `src/types.ts`: reference TypeScript types (`Upactor`, `IdentityPort`, `AuthError`, `Capability`, `Session`).
 - `src/runtime.ts`: small runtime kernel. Exports `createSession`, the canonical factory that produces opaque `Session` values per SPEC.md §7.4. Adapter authors should use it rather than maintain their own opaque-wrapper class; the opacity guarantee is centralised here, audited once.
-- `docs/adapter-shapes.md`: type-only sketches of the v0.1 shipped adapters (Supabase, SimpleX, OIDC, Mastodon).
+- `docs/adapter-shapes.md`: type-only sketches of the shipped adapters.
 - `docs/cross-adapter-findings.md`: cross-substrate observations that shaped the spec.
 - `examples/sveltekit-supabase/`: minimal SvelteKit + Supabase integration showing the three key wiring points: hook, type augmentation, and capability-gated page load.
-- `CONFORMANCE.md`: conformance statement template with filled-in examples for both v0.1 adapters.
+- `CONFORMANCE.md`: conformance statement template with filled-in examples.
 - `CHANGELOG.md`: per-version change record.
 
 ## Status
 
-v0.1.2. Four reference adapters shipped (OIDC added in 0.1.1, Mastodon added in 0.1.2). Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
+v0.1.2. Seven adapters shipped (see the table above). Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
 
-upact is maintained by a group of maintainers. Issues welcome at [github.com/prefig/upact/issues](https://github.com/prefig/upact/issues). At v1.0 the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors (see `SPEC.md` §11).
+Issues welcome at [github.com/prefig/upact/issues](https://github.com/prefig/upact/issues). At v1.0 the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors (see `SPEC.md` §11).
 
 ## Commit conventions
 
