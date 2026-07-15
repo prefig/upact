@@ -30,4 +30,4 @@ The following are **out of scope**:
 
 ## Conformance and security
 
-A conforming adapter's security posture is described in its `CONFORMANCE.md`. Applications that need stronger threat-model guarantees (e.g. adversarial-context coordination) SHOULD choose a substrate whose threat model matches — see `SPEC.md §10`.
+A conforming adapter's security posture is described in its `CONFORMANCE.md`. Applications that need stronger threat-model guarantees (e.g. adversarial-context coordination) SHOULD choose a substrate whose threat model matches; see `SPEC.md §10`.

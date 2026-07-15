@@ -76,6 +76,43 @@ export interface Upactor {
 export type UserIdentity = Upactor;
 
 /**
+ * A presentation request a relying party issues to a keyring/wallet, asking the
+ * holder to present membership. Substrate-agnostic, and named to map onto an
+ * OpenID4VP authorization request so a Digital Credentials API adapter is a
+ * mechanical shim rather than a redesign:
+ *   nonce    -> `nonce`              (replay binding)
+ *   audience -> `client_id`          (who the presentation is for)
+ *   scopes   -> `dcql_query` / `presentation_definition` constraint
+ * The wire encoding is the substrate's; this is the shape an app reasons about.
+ */
+export interface PresentationRequest {
+	/** Single-use challenge the verifier issued; the presentation must echo it. */
+	nonce: Uint8Array | string;
+	/** The verifier this presentation is for (its origin). Binds against relay. */
+	audience: string;
+	/** Optional restriction to specific scopes; omitted means "whatever you hold". */
+	scopes?: string[];
+}
+
+/**
+ * A verifiable presentation supplied as authentication (or renewal) evidence,
+ * the response to a {@link PresentationRequest}. The envelope is
+ * substrate-agnostic; `vpToken` is the substrate's opaque presentation token,
+ * named to map onto an OpenID4VP `vp_token` response so the DC-API path stays a
+ * shim. An adapter verifies `vpToken` against the scope root(s) it trusts and
+ * returns an {@link Upactor} carrying a `represence` lifecycle. See the
+ * @prefig/upact-ember README for the concrete field mapping.
+ */
+export interface Presentation {
+	/** Echoes the request nonce. */
+	nonce: Uint8Array | string;
+	/** The audience the holder addressed the presentation to, if any. */
+	audience?: string;
+	/** Substrate-specific verifiable presentation token (maps to `vp_token`). */
+	vpToken: Uint8Array;
+}
+
+/**
  * A provider-shaped credential exchange result. Opaque to the application.
  * The only valid use is to pass it back to the port (e.g. for invalidate).
  * See SPEC.md §7.4.
