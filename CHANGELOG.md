@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-07-16
+
+### Added
+
+- `PresentationRequest` and `Presentation` types: the presentation evidence contract an adapter consumes as authentication or renewal evidence (documented in `src/types.ts`; first included in the 2026-07-14 npm build of 0.1.2, recorded here for the register).
+
+### Changed
+
+- Package description and README copy pass: affirmative framing, current adapter table (all seven shipped adapters), published-install instructions.
+
 ### Removed
 
 - `CONTRIBUTING.md`, `GOVERNANCE.md`, `ROADMAP.md`. Load-bearing content folded into `README.md` (maintenance posture, commit conventions including the `Co-Authored-By:` exclusion) and `SPEC.md` (working-group definition self-contained in §11; authorship note self-contained at the top). Decision lineage lives in `git log` and the `SPEC.md` §12 register. The Decision 12 deployment-shape table moved to `docs/adapter-shapes.md`. The repo's earlier institutional shape exceeded what a single-maintainer experiment in v0.x earns.

@@ -98,7 +98,7 @@ If your application uses upact, open a PR to add it here.
 
 ## Status
 
-v0.1.2. Seven adapters shipped (see the table above). Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
+v0.1.3. Seven adapters shipped (see the table above). Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
 
 Issues welcome at [github.com/prefig/upact/issues](https://github.com/prefig/upact/issues). At v1.0 the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors (see `SPEC.md` §11).
 
