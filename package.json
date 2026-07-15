@@ -1,7 +1,7 @@
 {
 	"name": "@prefig/upact",
 	"version": "0.1.2",
-	"description": "upact — identity port: a typed architectural contract between a social application and any identity provider, with privacy minima as the translation rule.",
+	"description": "Provider-agnostic identity port for TypeScript web apps.",
 	"license": "(CC-BY-4.0 AND Apache-2.0)",
 	"type": "module",
 	"main": "./dist/index.js",
