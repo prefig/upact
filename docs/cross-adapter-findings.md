@@ -120,8 +120,51 @@ A future ATProto / Bluesky adapter would re-test the same findings against a dif
 
 **Classification.** Confirmation note (no spec change). Recorded for the institutional record.
 
+## F7. Authentication is not admission (open- vs closed-enrolment substrates)
+
+**Observation.** Building the ATProto adapter in dyad forced a distinction the port currently blurs. An ATProto credential proves control of a DID, but *anyone* on the network has one, so authenticating says nothing about whether the person may enter this application. The adapter had to gate `establish` on a separate, app-held durable grant (an `identity_scopes` row); a verified sign-in with no grant is rejected. This is unlike the closed-enrolment substrates the port was first shaped around (e.g. an in-person-issued represence credential), where possession of the credential *is* the admission because the community issued it.
+
+**Generalisation.** Substrates split into two enrolment classes, and it is orthogonal to the binding-shape and lifecycle taxonomies already recorded:
+- **Closed enrolment** (represence, invite-issued): authentication implies admission. The provider is the admission authority; its `scope` legitimately asserts access.
+- **Open enrolment** (ATProto, most OIDC/social IdPs): authentication is universal. Admission is a separate fact the *application* owns; the provider must not be trusted to assert access.
+
+The `IdentityProvider.scope` field encodes "what a session from this provider grants," which quietly assumes the closed-enrolment model. For open substrates that field is at best a default and at worst misleading: it should name what the credential is *for*, not what the holder is *entitled to*.
+
+**Classification.** Spec-relevant (§ on the provider contract / `scope` semantics) + adapter-author guidance. Recommend `adapter-shapes.md` gain an enrolment-class column, and CONFORMANCE prose stating that open-enrolment adapters must not treat authentication as admission.
+
+## F8. A resolved session must re-validate authorization against durable state, not the credential
+
+**Observation.** This one came out of a red-team pass, from a real (pre-ship) vulnerability. dyad's provider `ScopeSession` bundles the scope into the session and is carried in a signed cookie with a multi-day life. The first implementation trusted the scope *from the credential* when authorizing downstream (it minted the data-layer claim from the session's asserted scope). Result: revoking the durable grant had no effect until the cookie expired, because nothing on the request path re-checked the grant. The fix was to re-read the durable grant on every request and derive authorization from that, intersected with the credential's scope.
+
+**Generalisation.** The port conflates two lifetimes that revocation forces apart: *credential validity* (is this a genuine, unexpired session?) and *current authorization* (is this identity still admitted, right now?). `resolveSession` returning a `ScopeSession` reads as "here is a valid session with these scopes," which invites an adapter author to trust the scope as live. Any substrate whose credential outlives a single request (cookies, refresh tokens, long-lived bearer tokens) is exposed to this: revocation latency bounded by credential TTL, not by the revocation event.
+
+**Classification.** Spec-relevant + CONFORMANCE. The contract for `resolveSession` (and for whatever consumes its scopes) should state normatively that a session's *authorization* must be validated against durable state per request; the credential attests identity and freshness, never standing entitlement. Worth a Decision: does `ScopeSession` even belong to the port, or should the port return identity + credential-validity and leave scope/authorization to the application layer? The bug is structural evidence for splitting them.
+
+## F9. The port is only half of adopting a non-native provider; the authZ bridge is the other half
+
+**Observation.** upact correctly disclaims data access ("upact does not abstract data access ... RLS remains substrate-coupled by design"). But the actual work and the actual vulnerability in adding ATProto to a Supabase-backed app were *not* in authentication (the port) — they were in getting a non-Supabase-Auth identity to authorize under Supabase RLS. That took a separate claim-injection seam: mint a short-lived JWT carrying the identity + scopes that PostgREST/RLS honour, plus a `current_user_id()` wrapper that reads the claim before falling back to `auth.uid()`. Without it, a provider identity can authenticate but can do nothing.
+
+**Generalisation.** For any app whose data layer authorizes on the native auth substrate's identity (Supabase RLS on `auth.uid()`, and analogues), adopting a upact provider from a *different* substrate is impossible on the port alone. There is a predictable companion component — an authorization bridge from "upact resolved identity X" to "the data layer authorizes as X" — that every such adopter must build. It is out of upact's charter to *provide*, but leaving it entirely unmentioned strands adopters at the exact cliff where they hit the port's boundary.
+
+**Classification.** Spec-relevant (a boundary note) + docs. Recommend upact's docs point at the pattern (dyad's is extractable as a sibling library, working name `supabase-rls-claims`) so adopters know the port is authentication and the bridge is authorization, and that the second is theirs to build. Explicitly *not* a `upact-*` package — pairing it under the identity contract is what caused naming confusion in the dyad build.
+
+## F10. Account-less identity leaves the "authenticated but not yet onboarded" state undefined
+
+**Observation.** The Upactor is account-less by design, but real applications have an account/profile concept. dyad's native (Supabase) users get a profile atomically at signup (a DB trigger), so the app-wide invariant "authenticated ⇒ has a profile" held everywhere and was silently assumed by every handler. A provider identity is the first case that can be authenticated with *no* profile, which broke that assumption until it was re-established at a single gate.
+
+**Generalisation.** Adopting any upact provider introduces an intermediate state — admitted and authenticated, but not yet a local account — that the account-native path never produced. Apps must (a) recognise the state exists and (b) enforce account creation at one chokepoint, or every downstream handler inherits a new null-account case. This is not upact's to solve (it is deliberately account-agnostic), but it is a predictable consequence of adopting the port that adapter-author guidance should name.
+
+**Classification.** Adapter-author guidance. Recommend a short "deferred account creation" pattern note: the port gives you identity, not an account; handle the gap at one gate, not per-handler.
+
+## F11. Decision 7 (`continuation`) worked example: DID identity survives host migration
+
+**Observation.** The ATProto adapter is the first shipped consumer of the deferred Decision 7. Member id is derived as `SHA-256(did)[:32]`, which is stable across PDS migration because the DID is the durable anchor and the PDS is only its current host. This is strictly better than the Mastodon adapter's per-instance actor-URL id (F3), which does not survive an instance move. Concrete data point: a stable, opaque, host-independent id from an open substrate is achievable, and the derivation is a plain hash of the portable identifier.
+
+**Classification.** Decision-register evidence for Decision 7. `adapter-shapes.md`'s reserved ATProto row can now be filled from shipped code rather than predicted.
+
 ## Sources
 
 - **Conversation arc:** 2026-05-01 spec design discussion (covering the move from direct-adapter to IDP-delegation, the self-binding posture, and the cross-substrate spec stress test).
 - **Cross-adapter ce:review:** May 2026 review across upact + upact-supabase + upact-simplex that opened Decisions 3, 4, 6, 7, 8, 9.
 - **Decision 12 closure (2026-05-04):** the multi-instance fediverse exception to Path B (closed in `SPEC.md` §12; deployment-shape table in `docs/adapter-shapes.md`). The shipped `@prefig/upact-mastodon` adapter is the empirical confirmation of F1–G1 above.
+- **ATProto provider build + Supabase auth cutover in dyad (2026-07-14):** F7–F11. First open-enrolment substrate taken to a working sign-in/join/onboarding flow, plus a full cutover making Supabase Auth one provider among several. F8 came from a red-team pass that found and fixed a real revocation-latency vulnerability before ship. Branch `atproto-provider` (dyad-berlin/dyad PR #115). See also the extraction map in `~/prefig/docs/dyad/research/2026-07-13-atproto-experiment-design.md`.
