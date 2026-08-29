@@ -1,11 +1,12 @@
 # Identity audit worksheet
 
-DWeb Camp 2026 · upact workshop · CC BY 4.0
+CC BY 4.0 · first run at the upact workshop, DWeb Camp 2026
 Spec: github.com/prefig/upact (SPEC.md v0.1) · Worked example: the Dyad audit (linked from the repo)
 
-You will audit one platform: your own, your pair's, or the provided one (appendix A).
+You will audit one platform: your own, a partner's, or the provided one (appendix A).
 Work on paper or laptop. Nothing here requires running code; a checkout to grep is
-useful but optional. Timeboxes match the session; the worksheet also works solo.
+useful but optional. The timeboxes suit a facilitated session; the worksheet also
+works solo, untimed.
 
 ---
 
@@ -45,7 +46,7 @@ to your stack; the pattern matters, not the string.
 | 5 | Outbound delivery | When you send something to a user, where does the address come from: the identity object, or a domain row someone filled in? | `sendEmail`, `notify` | |
 | 6 | Foreign keys into the substrate | Do your application tables reference the provider's user table directly? Count the FK columns. | `auth.users`, `REFERENCES` | |
 | 7 | Substrate machinery in the data layer | Triggers, stored procedures, or jobs that read or write the provider's tables directly? | function bodies in migrations | |
-| 8 | Where "admin" lives | Is authorization stored in substrate metadata (`app_metadata.role`) or in your own tables? (The port refuses to model authz; see SPEC §4.) | `app_metadata`, `role` | |
+| 8 | Where "admin" lives | Is authorization stored in substrate metadata (`app_metadata.role`) or in your own tables? (The port refuses to model authz; see SPEC §3.1.) | `app_metadata`, `role` | |
 | 9 | Privileged clients | Service-role keys, admin APIs, backdoor clients: what uses them, and could that logic live behind an adapter instead? | `SERVICE_ROLE`, `admin` | |
 | 10 | ID permanence | If every user's identifier rotated tomorrow, which records could still be read by their owners? Which queries silently return nothing? | `user_id`, `userId` | |
 
@@ -64,10 +65,8 @@ The upact's shipped capability vocabulary is deliberately small (SPEC §5.1):
 - `email`: the provider can deliver email to this identity
 - `recovery`: the provider supports identity recovery flows
 
-Plus the lifecycle axis every identity carries (SPEC §4):
+Plus the optional lifecycle axis an identity may carry (SPEC §4.4):
 `expires_at`, and `renewable: 'reauth' | 'represence' | 'never'`.
-For stored records, the decay annotation (SPEC §9):
-`cascade_on_identity_expiry: 'preserve' | 'expire'`.
 
 For each **[S]** finding from Part 1, decide its lane:
 
@@ -84,19 +83,19 @@ capability there. A named gap ("send to this person via the substrate's preferre
 channel", "verify an operator out-of-band", yours here) is a candidate for the
 §5.2 registry: capabilities enter the core vocabulary on demonstrated
 implementation by two providers and consumption by one application. Your gap,
-written clearly, is a contribution. Hand this table in (photo or paper) if you
-are willing; the vocabulary discussion in the closing segment works from these.
+written clearly, is a contribution: open an issue at github.com/prefig/upact
+with your gap table. The §5.2 vocabulary discussion works from these.
 
-One warning while you map (SPEC §4): if you found "admin" in substrate metadata
+One warning while you map (SPEC §3.1): if you found "admin" in substrate metadata
 (concern 8), the port will not carry it. Authorization is application-owned by
 design. The migration for that finding is a role table of your own, not a
 capability.
 
 ---
 
-## Part 3. Migration sketch (20 min, in pairs)
+## Part 3. Migration sketch (20 min; in pairs if you have one)
 
-One page. Swap with your pair at ten minutes and pressure-test each other's.
+One page. With a pair: swap at ten minutes and pressure-test each other's. Solo: take a break at ten minutes and re-read your own sketch as a sceptic.
 
 **Adapter:** which existing adapter fits your substrate, or what would
 `@prefig/upact-<yours>` have to wrap? ______________________________________
@@ -121,11 +120,9 @@ Write the number your cofounder would not want to hear: ______
 
 ## Afterwards
 
-- Working group: sign-up sheet in the session, or issues at github.com/prefig/upact
+- Working group: issues at github.com/prefig/upact
 - The worked example (Dyad, all ten concerns, with effort estimates) and this
   worksheet stay up at the repo under CC BY 4.0
-- A write-up of the session's findings, including the gap table, follows within
-  four weeks
 
 ---
 

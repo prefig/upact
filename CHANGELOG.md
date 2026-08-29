@@ -6,6 +6,18 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Fixed (documentation accuracy pass, 2026-08-28)
+
+- Corrected the runtime-kernel test description: nine reflection vectors plus frozen-state immutability and the `_unwrapSession` escape hatch (`tests/runtime.test.ts`); the sixteen-case count belongs to the adapter back-channel suite. Affected `README.md`, `SPEC.md` §7.4, `CONFORMANCE.md`.
+- Rewrote citations of Decisions 10/11/12 (which lived in the deleted `ROADMAP.md`) to cite the normative clauses directly (§6, §7.5, the Path B exception). Affected `SECURITY.md` and `docs/`.
+- Removed the unshipped `cascade_on_identity_expiry` annotation and its "SPEC §9" citation from the workshop docs; §9 is the conformance statement.
+- Corrected `SPEC §4` → `§3.1` (authorization out of scope) and `§10` → `§9` (conformance statement) miscites.
+- Adapter table: all seven adapters at v0.1.1; EUDI row scoped to "OpenID4VP 1.0 relying party, ecosystem in pilot until Dec 2026".
+- `SPEC.md` §13: added ember, eudi, atproto entries; footer version aligned.
+- Factual corrections from an external fact-check: Supabase Auth ids are GoTrue `uuid.NewV4()` (not `gen_random_uuid()`); SimpleX `agentUserId` is an Int64 row id, not a UUID (identifier-derivation prose now states the confirmability consequence); Pleroma/Akkoma/GoToSocial described as independent Mastodon-API-compatible implementations, not forks; `lucia` (deprecated, never an OIDC client) replaced in the README client list; TC39 licensing precedent claim replaced with the SPDX project's actual spec/code split, with a note that CC BY 4.0 grants no patent rights.
+- Workshop docs reframed as standalone materials (the DWeb Camp 2026 session has passed); removed the four-week write-up promise.
+- Security contact moved to fiore@prefig.tech; supply-chain delegation no longer points at adapter security policies that do not exist.
+
 ## [0.1.3] — 2026-07-16
 
 ### Added
@@ -15,15 +27,12 @@ All notable changes to this project are documented here. Format follows [Keep a 
 ### Changed
 
 - Package description and README copy pass: affirmative framing, current adapter table (all seven shipped adapters), published-install instructions.
+- `SPEC.md`: stripped audit-framing references in §4, §5.1, §11, §12, §13 prose, leaving the substantive content intact. The footer no longer points at deleted documents.
+- `package.json` `files` array: drops the deleted documents from the published package.
 
 ### Removed
 
 - `CONTRIBUTING.md`, `GOVERNANCE.md`, `ROADMAP.md`. Load-bearing content folded into `README.md` (maintenance posture, commit conventions including the `Co-Authored-By:` exclusion) and `SPEC.md` (working-group definition self-contained in §11; authorship note self-contained at the top). Decision lineage lives in `git log` and the `SPEC.md` §12 register. The Decision 12 deployment-shape table moved to `docs/adapter-shapes.md`. The repo's earlier institutional shape exceeded what a single-maintainer experiment in v0.x earns.
-
-### Changed
-
-- `SPEC.md`: stripped audit-framing references in §4, §5.1, §11, §12, §13 prose, leaving the substantive content intact. The footer no longer points at deleted documents.
-- `package.json` `files` array: drops the deleted documents from the published package.
 
 ---
 

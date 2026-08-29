@@ -26,9 +26,9 @@ markers: `sendEmail`, `\.email`, `auth.users`, `app_metadata`, `user_metadata`,
 | 5 | Outbound delivery | **D** (transport) | All three `sendEmail` call sites take the recipient from domain rows, never from the identity object. The transport is capability-bound; the *features* (waitlist confirmation, invite links) need substrate-appropriate channels where email is absent. |
 | 6 | Foreign keys into the substrate | **S** | ~10 FK columns across 7 migrations reference `auth.users(id)` directly (prompts, comments, invitations, meetings, feedback forms, profiles). Every one couples the application schema to the vendor's auth schema. The largest single finding. |
 | 7 | Substrate machinery in the data layer | **S** | Five Postgres functions/triggers read or write `auth.users` directly (email confirmation, registration checks, invite validation, new-user trigger). Each either becomes Supabase-conditional or moves behind the adapter. |
-| 8 | Where "admin" lives | **S** | `app_metadata.role` read in three places for the admin gate. Authorization does not belong on the identity port (SPEC §4); the migration is a role column of our own, behind one `isAdmin()` helper. |
+| 8 | Where "admin" lives | **S** | `app_metadata.role` read in three places for the admin gate. Authorization does not belong on the identity port (SPEC §3.1); the migration is a role column of our own, behind one `isAdmin()` helper. |
 | 9 | Privileged clients | **S** | A service-role admin client verifies invite tokens and creates accounts pre-login. Service-role is a vendor concept; those operations belong in the adapter, and on peer-to-peer substrates they do not exist at all. |
-| 10 | ID permanence | **S** | No id-rotation handling anywhere. Queries assume the caller's id equals the id stored in historic rows. On a presence-renewed (`'represence'`) substrate such as ember, every record type needs an explicit `cascade_on_identity_expiry: 'preserve'` or `'expire'` annotation (SPEC §9). Today the stability of vendor ids makes this work by accident, not by design. |
+| 10 | ID permanence | **S** | No id-rotation handling anywhere. Queries assume the caller's id equals the id stored in historic rows. On a presence-renewed (`'represence'`) substrate such as ember, every record type needs an explicit preserve-or-expire decision for what happens when its owner's identity lapses. Today the stability of vendor ids makes this work by accident, not by design. |
 
 Marks: **S 7 · D 2 · C 1.**
 
@@ -64,5 +64,5 @@ your cofounder would not want to hear. Ours is in the table above.
 
 ---
 
-Published as workshop pre-reading for DWeb Camp 2026. Corrections and your own
+First published as workshop pre-reading for DWeb Camp 2026. Corrections and your own
 audit results are welcome at [github.com/prefig/upact/issues](https://github.com/prefig/upact/issues). CC BY 4.0.

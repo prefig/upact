@@ -1,10 +1,10 @@
 # Adapter shape sketches
 
-> **Status (v0.1.2):** sketches of substrates against the upact `IdentityPort` contract. Substrate sketches land alongside their shipped adapter. Sketches return when an adapter is genuinely on the way.
+> **Status (v0.1.3):** sketches of substrates against the upact `IdentityPort` contract. Substrate sketches land alongside their shipped adapter. Sketches return when an adapter is genuinely on the way.
 
 ## Why this document exists
 
-`@prefig/upact-supabase`, `@prefig/upact-simplex`, `@prefig/upact-oidc`, and `@prefig/upact-mastodon` are the four reference adapters at v0.1.2. This document records the shape choices each made and the substrate-conformance camp it falls into, so future adapters inherit the cross-substrate validation that already happened, not a single-adapter pattern.
+Seven adapters have shipped (see the README table). This document records the shape choices of the first four — `@prefig/upact-supabase`, `@prefig/upact-simplex`, `@prefig/upact-oidc`, and `@prefig/upact-mastodon` — and the substrate-conformance camp each falls into, so future adapters inherit the cross-substrate validation that already happened, not a single-adapter pattern. Rows for `@prefig/upact-ember`, `@prefig/upact-eudi`, and `@prefig/upact-atproto` are pending; until then their `CONFORMANCE.md` files are the shape record.
 
 The check is type-only. We sketch the *signatures* each adapter exposes, not their implementations. The signatures surface the substrate-specific assumptions encoded by each adapter's interface.
 
@@ -13,14 +13,14 @@ The check is type-only. We sketch the *signatures* each adapter exposes, not the
 - **Pre-conforming substrates**: e.g. SimpleX (no central directory; anonymous unidirectional queues). The substrate's natural shape is already aligned with upact's MUST-NOTs. Adapters are mostly *type translation*, not architectural enforcement (thin packages).
 - **Enforcement substrates**: e.g. Supabase Auth, OIDC providers (Phase C). The substrate exposes far more than upact permits; the adapter does the work of stripping, hiding, and capability-bounding (thicker packages).
 
-`@prefig/upact-supabase` is the worked example of the *enforcement* case: Supabase's `User` shape exposes email, phone, JWT claims, `app_metadata`, `user_metadata`, all of which the adapter strips or hides. `@prefig/upact-simplex` is the worked example of the *pre-conforming* case: the SimpleX daemon's local profile carries `localDisplayName`, `agentUserId` (UUID), and a few status flags; the adapter hashes the UUID, sanitises the display name, and that's roughly it. `@prefig/upact-oidc` is the enforcement case for any OIDC-compliant IDP. `@prefig/upact-mastodon` is the enforcement case for Mastodon-API-compatible servers with per-login instance discovery (the multi-instance fediverse exception to Path B; see the deployment-shape table below).
+`@prefig/upact-supabase` is the worked example of the *enforcement* case: Supabase's `User` shape exposes email, phone, JWT claims, `app_metadata`, `user_metadata`, all of which the adapter strips or hides. `@prefig/upact-simplex` is the worked example of the *pre-conforming* case: the SimpleX daemon's local profile carries `localDisplayName`, `agentUserId` (an Int64 local row id, serialised as a string), and a few status flags; the adapter hashes that id, sanitises the display name, and that's roughly it. `@prefig/upact-oidc` is the enforcement case for any OIDC-compliant IDP. `@prefig/upact-mastodon` is the enforcement case for Mastodon-API-compatible servers with per-login instance discovery (the multi-instance fediverse exception to Path B; see the deployment-shape table below).
 
-## Substrates compared (v0.1.2 shipped reality)
+## Substrates compared (first four adapters, as shipped)
 
 | Property | Supabase | SimpleX | OIDC | Mastodon |
 |---|---|---|---|---|
 | Substrate-conformance camp | Enforcement | Pre-conforming | Enforcement | Enforcement |
-| Identity-`id` stability | Account lifetime (years) | Application-scoped, derived from local profile UUID | Stable within issuer: SHA-256(`sub@iss`)[:32] | Stable per (account, instance): SHA-256(`actor.url`)[:32] |
+| Identity-`id` stability | Account lifetime (years) | Application-scoped, derived from the local profile id | Stable within issuer: SHA-256(`sub@iss`)[:32] | Stable per (account, instance): SHA-256(`actor.url`)[:32] |
 | Substrate "user object" | A `User` record in `auth.users` | A local SimpleX profile (no server-side record) | ID token claims (sub, iss, exp, preferred_username, name) | `verify_credentials` Account response (id, acct, username, display_name, url; ~25 other fields stripped at the network boundary) |
 | Adapter binding shape | Per-request: `event.locals.supabase` is cookie-bound at hook time | Per-instance: long-lived daemon connection, single-tenant per process | Per-request: `event.cookies` (CookieJar) + inbound Request | Per-request: `event.cookies` (CookieJar) + per-process `ClientStore` for OAuth client credentials |
 | `currentUpactor` synchrony | Cookies bound to request: fast local read | Daemon round-trip (no remote server, but local IPC) | Cookie read + optional refresh token grant | Cookie read + `verify_credentials` round-trip (cached per-token, default 60s) |
@@ -34,7 +34,7 @@ The check is type-only. We sketch the *signatures* each adapter exposes, not the
 
 ## Adapter constructor signatures
 
-The constructor reveals what substrate state the adapter binds to. v0.1 ships both adapters as **factory-only** (no class form): Decision 11 / SPEC §7.5 closure-capture conformance is most genuinely satisfied by the factory shape, and the audit found no concrete forward-looking use case the factory does not satisfy.
+The constructor reveals what substrate state the adapter binds to. All shipped adapters are **factory-only** (no class form): SPEC §7.5 closure-capture conformance is most genuinely satisfied by the factory shape, and the audit found no concrete forward-looking use case the factory does not satisfy.
 
 ```ts
 // Supabase: request-bound SupabaseClient (cookies via @supabase/ssr).
@@ -75,7 +75,7 @@ Whether the per-adapter mapper is sync or async is forced by substrate access pa
 // supabase.auth.getUser() resolves. Pure mapper is feasible.
 function userToUpactor(user: User): Upactor;
 
-// SimpleX: id derivation hashes the substrate's UUID via Web Crypto API.
+// SimpleX: id derivation hashes the substrate's profile id via Web Crypto API.
 // The substrate-User is available locally, but the id derivation itself
 // is async. (Async because Web Crypto is async; nothing about the
 // substrate forces an extra round trip.)
@@ -84,9 +84,9 @@ async function userToUpactor(user: User): Promise<Upactor>;
 
 **Generalisation:** adapters with substrate-User objects available in-memory MAY expose a sync mapper as a convenience; adapters whose mapping requires async work (Web Crypto, network round-trip, file I/O) MUST be async. The port operations themselves (SPEC §6) are all async, which is correct. Sync-mapper convenience is **substrate-specific**, not a port pattern future adapters should inherit.
 
-## Decision 11 closure-capture conformance: all four adapters
+## §7.5 closure-capture conformance: all four adapters
 
-All four adapters hold their substrate state in closure scope. `(adapter as any).client` (and equivalent property names) returns `undefined` for each. Each ships a sixteen-vector reflection test (`tests/back-channel.test.ts`) verifying that no sentinel substrate token leaks via any common reflection vector.
+All four adapters hold their substrate state in closure scope. `(adapter as any).client` (and equivalent property names) returns `undefined` for each. Each ships a sixteen-case back-channel reflection test (`tests/back-channel.test.ts`) verifying that no sentinel substrate token leaks via any common reflection vector.
 
 The factory pattern is the operational form of §7.5: there is no instance property to reach for. Every adapter's tests assert this directly.
 
@@ -98,14 +98,14 @@ Key decisions:
 - Scope policy enforces `email`/`phone`/`address`/`groups` exclusion at construction time (throws immediately).
 - `id` = SHA-256(`sub@iss`)[:32]: deterministic, not reversible, stable across refresh rotations.
 - Tokens stored in HMAC-SHA256 signed session cookie; never on the `Session` or `Upactor`.
-- `issueRenewal` is OPTIONAL (Decision 9): returns `null` if no refresh token present.
+- `issueRenewal` is OPTIONAL (SPEC §12 D9): returns `null` if no refresh token present.
 - Two out-of-port extensions: `buildAuthRedirect()` (init phase) and `buildLogoutRedirect()` (logout).
 
 Convene, Reticulum, and fediverse-DID-based sketches return only if and when shipped adapters arrive: per the audit, sketches don't precede the shipped adapter.
 
 ## Mastodon adapter specifics (v0.1.2 shipped)
 
-The fediverse-flexibility pattern (Decision 12): the Mastodon adapter's substrate is "any Mastodon-API-compatible server the user picks at login." Path B (OIDC + Authentik) is incompatible with arbitrary-instance UX because each instance must be preregistered at the IDP; the Mastodon adapter resolves the user-supplied instance and registers an OAuth client at login time.
+The fediverse-flexibility pattern (the multi-instance exception to Path B; see the deployment-shape table below): the Mastodon adapter's substrate is "any Mastodon-API-compatible server the user picks at login." Path B (OIDC + Authentik) is incompatible with arbitrary-instance UX because each instance must be preregistered at the IDP; the Mastodon adapter resolves the user-supplied instance and registers an OAuth client at login time.
 
 Key decisions:
 - Per-login instance discovery via `GET /api/v1/instance` (with v2 fallback). Bare hostname, WebFinger handle (`@alice@hachyderm.io`), and full URL inputs all resolve to the canonical origin.
@@ -117,7 +117,7 @@ Key decisions:
 - One out-of-port extension: `buildAuthRedirect()` (init phase). No `buildLogoutRedirect`: Mastodon has no end-session URL analog.
 - 16-vector reflection test passes; substrate state (access token, client credentials, instance origin, actor URL, cookie secret) lives entirely in closure.
 
-This is the first adapter in the project where F2's per-user-session binding shape is empirically observed in shipped code rather than predicted from analysis. The next likely candidate is a Bluesky / ATProto adapter, where DID-based identity portability would also exercise the deferred Decision 7 (`continuation`).
+This is the first adapter in the project where F2's per-user-session binding shape was empirically observed in shipped code rather than predicted from analysis. The ATProto adapter has since shipped and confirmed the prediction: DID-based identity portability exercises the deferred D7 (`continuation`) — see cross-adapter-findings.md F11.
 
 ## Choosing between OIDC and Mastodon adapters
 

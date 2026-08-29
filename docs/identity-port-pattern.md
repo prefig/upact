@@ -1,12 +1,10 @@
 # The identity port pattern
 
-Pre-reading for the DWeb Camp 2026 upact workshop. Optional; the session
-assumes none of it. CC BY 4.0.
+An introduction to the pattern behind upact. Written as pre-reading for the
+upact workshop at DWeb Camp 2026 (July, Alte Hölle); it stands alone. CC BY 4.0.
 Normative home: [SPEC.md](../SPEC.md) (v0.1). Companions:
 [audit worksheet](workshop-audit-worksheet.md) ·
 [worked example](worked-example-dyad-audit.md).
-
-**Status: draft for maintainer review.**
 
 ## The pattern in one paragraph
 
@@ -43,13 +41,14 @@ application (§5.2).
 
 Privacy minima (SPEC §7, normative MUST NOTs): no identifiers outside the
 contract, no silent enrichment, no correlation handles. Providers conform to
-these; the sixteen-vector reflection test in the conformance suite checks that
-sessions cannot be unwrapped by inspection.
+these; the runtime kernel's reflection suite checks that sessions cannot be
+unwrapped by inspection, and each adapter's back-channel test checks that the
+substrate client cannot be reached through the adapter instance.
 
-Decay-aware data (SPEC §9): records either survive identity expiry by design
-(`cascade_on_identity_expiry: 'preserve'`, with anonymised attribution) or
-expire with their identity (`'expire'`). Nothing may silently assume
-identifier permanence.
+Identity decay is real on some substrates: an identity may lapse or be
+re-issued with a new `id` (SPEC §4.4, §6.4). Applications decide per record
+type whether data survives its owner's identity (with anonymised attribution)
+or expires with it. Nothing may silently assume identifier permanence.
 
 ## Why this is an anti-corruption layer, and the twist
 
@@ -135,13 +134,12 @@ privacy by design. Selective disclosure is established on the user side.
 The contribution is the combination, published as a small portable contract:
 minimum disclosure as the translation rule of an identity-specialised ACL,
 enforced in the type system, with threat-model decoupling following from
-substrate-agnosticism, and a data-model contract that takes identity decay
-seriously. Adjacent work exists, and the workshop is one of the places we
-expect to be told about more of it. Corrections are a contribution;
-the working group is the venue.
+substrate-agnosticism, and an insistence that applications take identity decay
+seriously. Adjacent work exists, and we expect to be told about more of it.
+Corrections are a contribution; issues at github.com/prefig/upact are the venue.
 
-## If you read one thing before the session
+## If you read one thing
 
 Read the [worked example](worked-example-dyad-audit.md). It is the audit the
-workshop asks you to run on your own platform, run first on ours, with the
-costs stated.
+[worksheet](workshop-audit-worksheet.md) asks you to run on your own platform,
+run first on ours, with the costs stated.

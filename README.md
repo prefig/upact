@@ -8,11 +8,11 @@ upact is named for the Ulysses pact that adopters make when building privacy-fir
 
 upact is a minimum-disclosure anti-corruption layer between your application and any supported identity-management substrate. The privacy minima at the port (no email, no phone, no IP, opaque sessions, enumerated capabilities) are commitments the application can no longer violate *through the upact-shaped path*. An application built on upact cannot quietly pivot the identity layer toward surveillance, retention, or third-party data-sharing without visible architectural change.
 
-The port does not block pivots reachable through direct substrate-library import. Those remain visible to code review only. See §7.5 below and `SECURITY.md` for the limit.
+The port does not block pivots reachable through direct substrate-library import. Those remain visible to code review only. See `SPEC.md` §7.5 and `SECURITY.md` for the limit.
 
 The constraint also shapes design. When the application cannot know a user's email, you build features that don't need it. This provides friction against reflexes inherited from an extraction- and retention-shaped social media ecosystem.
 
-upact sits on top of OIDC clients (`auth.js`, `lucia`, `openid-client`), identity-broker IDPs (Authentik, Keycloak, ZITADEL), and identity protocols (DIDs, Verifiable Credentials): a typed-contract layer over what the application is permitted to know and what it has bound itself out of knowing.
+upact sits on top of OIDC clients (`openid-client`, `arctic`) and auth frameworks that wrap them (`auth.js`), identity-broker IDPs (Authentik, Keycloak, ZITADEL), and identity protocols (DIDs, Verifiable Credentials): a typed-contract layer over what the application is permitted to know and what it has bound itself out of knowing.
 
 ## Why upact
 
@@ -21,9 +21,9 @@ These benefits accrue to every application using upact, regardless of motivation
 - **Design discipline.** Structural limits on what you can know force design principles and features that don't depend on data you shouldn't have.
 - **A small, well-defined identity surface.** The `Upactor` type carries a handful of fields; substrate-shaped User types carry dozens.
 - **Privacy guarantees at call sites that use the port.** Code that uses `currentUpactor` cannot accidentally include email in logs, metrics, error reports, SSR-rendered HTML, or analytics events. Code that calls the substrate directly remains a code-review concern; treating substrate-library imports as a marked, audited boundary (e.g. only allowed in the substrate seam, forbidden in service code) extends the guarantee to the rest of the application.
-- **Audited opacity primitives.** Sessions cannot be unwrapped via `JSON.stringify`, `structuredClone`, `util.inspect`, or other inspection vectors. The runtime kernel is centrally tested across sixteen vectors; every conforming adapter inherits the guarantee.
+- **Audited opacity primitives.** Sessions cannot be unwrapped via `JSON.stringify`, `structuredClone`, `util.inspect`, or other inspection vectors. The runtime kernel is centrally tested across nine reflection vectors, plus frozen-state immutability and the `_unwrapSession` escape hatch; every conforming adapter inherits the guarantee. Adapter packages separately run a sixteen-case back-channel suite against the adapter instance (§7.5).
 - **Swap identity providers without re-architecting the identity layer.** The port carries your privacy posture across providers. Switch from Supabase Auth to an OIDC-brokered provider, and the application's identity-shaped call sites are unchanged. Substrate concerns outside identity (data access, RLS, jobs, admin tooling) remain substrate-coupled by design; upact does not abstract data access.
-- **A ready answer for compliance, legal, and regulator questions about user data.** When a third party asks "what does your application know about users?", the conformance statement documents what the adapter returns. It narrows but does not replace an application-level audit, since application code remains free to import substrate libraries directly per §7.5.
+- **A ready answer for compliance, legal, and regulator questions about user data.** When a third party asks "what does your application know about users?", the conformance statement documents what the adapter returns. It narrows but does not replace an application-level audit, since application code remains free to import substrate libraries directly per `SPEC.md` §7.5.
 
 ## Limits
 
@@ -63,19 +63,19 @@ try {
 }
 ```
 
-`authenticate` communicates auth failures as return values (`AuthError`); it never throws for wrong passwords or rate limits. `currentUpactor` and `issueRenewal` throw `SubstrateUnavailableError` for substrate outages; they never return error values. The asymmetry is deliberate: auth failures are expected control-flow; substrate outages are exceptional conditions.
+`authenticate` communicates auth failures as return values (`AuthError`); it never throws for wrong passwords or rate limits. `currentUpactor` signals substrate outages by throwing `SubstrateUnavailableError` (spec: a provider MAY throw a typed error, §6.2); the shipped adapters all do. It never returns an error value. The asymmetry is deliberate: auth failures are expected control-flow; substrate outages are exceptional conditions.
 
 ## Adapters
 
 | Package | Substrate | Camp | Status |
 |---|---|---|---|
-| `@prefig/upact-supabase` | Supabase Auth | Enforcement | v0.1.0 shipped |
-| `@prefig/upact-simplex` | SimpleX Chat daemon | Pre-conforming | v0.1.0 shipped |
-| `@prefig/upact-oidc` | Any OIDC-compliant IDP (Dex, Authentik, Keycloak, ZITADEL) | Enforcement | v0.1.0 shipped |
-| `@prefig/upact-mastodon` | Mastodon REST API (any user-chosen instance) | Enforcement | v0.1.0 shipped |
-| `@prefig/upact-ember` | ember presence credentials (offline verifier) | Pre-conforming | v0.1.0 shipped |
-| `@prefig/upact-eudi` | EUDI wallet, OpenID4VP relying party | Enforcement | v0.1.0 shipped |
-| `@prefig/upact-atproto` | ATProto / Bluesky (DID-based OAuth) | Enforcement | v0.1.0 shipped |
+| `@prefig/upact-supabase` | Supabase Auth | Enforcement | v0.1.1 shipped |
+| `@prefig/upact-simplex` | SimpleX Chat daemon | Pre-conforming | v0.1.1 shipped |
+| `@prefig/upact-oidc` | Any OIDC-compliant IDP (Dex, Authentik, Keycloak, ZITADEL) | Enforcement | v0.1.1 shipped |
+| `@prefig/upact-mastodon` | Mastodon REST API (any user-chosen instance) | Enforcement | v0.1.1 shipped |
+| `@prefig/upact-ember` | ember presence credentials (offline verifier) | Pre-conforming | v0.1.1 shipped |
+| `@prefig/upact-eudi` | OpenID4VP 1.0 relying party (EUDI-profile wallets; ecosystem in pilot until Dec 2026) | Enforcement | v0.1.1 shipped |
+| `@prefig/upact-atproto` | ATProto / Bluesky (DID-based OAuth) | Enforcement | v0.1.1 shipped |
 
 ## Adopters
 
@@ -91,7 +91,10 @@ If your application uses upact, open a PR to add it here.
 - `src/types.ts`: reference TypeScript types (`Upactor`, `IdentityPort`, `AuthError`, `Capability`, `Session`).
 - `src/runtime.ts`: small runtime kernel. Exports `createSession`, the canonical factory that produces opaque `Session` values per SPEC.md §7.4. Adapter authors should use it rather than maintain their own opaque-wrapper class; the opacity guarantee is centralised here, audited once.
 - `docs/adapter-shapes.md`: type-only sketches of the shipped adapters.
+- `docs/authoring-an-adapter.md`: the path from "my substrate isn't covered" to a published adapter.
 - `docs/cross-adapter-findings.md`: cross-substrate observations that shaped the spec.
+- `docs/identity-port-pattern.md`: an introduction to the pattern; workshop pre-reading.
+- `docs/workshop-audit-worksheet.md` and `docs/worked-example-dyad-audit.md`: the identity audit, blank and worked.
 - `examples/sveltekit-supabase/`: minimal SvelteKit + Supabase integration showing the three key wiring points: hook, type augmentation, and capability-gated page load.
 - `CONFORMANCE.md`: conformance statement template with filled-in examples.
 - `CHANGELOG.md`: per-version change record.
@@ -115,4 +118,4 @@ Dual-licensed:
 - **`SPEC.md`, `docs/`, this README, and other prose**: CC BY 4.0 (see `LICENSE`).
 - **`src/` (TypeScript types and runtime kernel)**: Apache-2.0 (see `LICENSE-CODE`).
 
-Each `src/*.ts` file carries an `SPDX-License-Identifier: Apache-2.0` header. The split follows TC39 / SPDX precedent: spec text is intellectual property meant to be cited and forked under CC; runtime code is software under a conventional permissive licence with a patent grant.
+Each `src/*.ts` file carries an `SPDX-License-Identifier: Apache-2.0` header. The split follows the SPDX project's own precedent (spec text under CC BY, tooling under Apache-2.0): spec text is meant to be cited and forked under CC; runtime code is software under a conventional permissive licence with a patent grant. Note that CC BY 4.0 grants no patent rights; a patent posture for the spec text is an open item ahead of the §11 working-group handoff at v1.0.

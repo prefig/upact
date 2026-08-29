@@ -47,7 +47,7 @@ An **application** conforms to this specification when it:
 
 Conformance is to a specific version of the spec.
 
-**Application-side conformance is currently a discipline, not a test.** The provider has a sixteen-vector reflection test for §7.5 conformance; the application side has no equivalent automated check. A future v0.2 release SHOULD ship application-side static checks (lint rules forbidding substrate-library imports outside the substrate seam, or equivalent) to mechanise this bar.
+**Application-side conformance is currently a discipline, not a test.** The provider has a sixteen-case back-channel reflection test for §7.5 conformance; the application side has no equivalent automated check. A future v0.2 release SHOULD ship application-side static checks (lint rules forbidding substrate-library imports outside the substrate seam, or equivalent) to mechanise this bar.
 
 ### §3.1 Scope: user-tier identity
 
@@ -197,7 +197,7 @@ interface AuthError {
 }
 ```
 
-Providers MUST return one of these codes; substrate-specific detail goes in `message`. Applications branch on `code` for substrate-portable error handling. Adapter packages document their per-substrate mapping (which substrate errors map to which code) in their conformance statement (§10).
+Providers MUST return one of these codes; substrate-specific detail goes in `message`. Applications branch on `code` for substrate-portable error handling. Adapter packages document their per-substrate mapping (which substrate errors map to which code) in their conformance statement (§9).
 
 Adapters may emit a subset of the vocabulary. Codes that distinguish identity-existence from credential-validity (notably `identity_unavailable`) are reserved for substrates that surface that distinction; the v0.1 reference adapters do not — Supabase conflates "no such user" with "wrong password" as user-enumeration resistance, OIDC surfaces failures as token errors. Application code can branch on the full vocabulary; some branches will be unreachable for some adapters.
 
@@ -231,7 +231,7 @@ The `id` field MUST NOT be derivable from any user-supplied identifier (email, p
 
 The `Session` value MUST be opaque to the application. Applications MUST NOT decompose, decode, or extract claims from a `Session` directly; the only valid use is to pass it back to the port (e.g. for `invalidate`). Substrate-shaped session structures (JWTs with claims, cookies with metadata, captured tokensets) are an implementation detail of the provider.
 
-**Implementations MAY use `createSession` from `@prefig/upact`**, which provides the normative opacity guarantee tested across the sixteen reflection vectors in `tests/runtime.test.ts`. Implementations that do not use `createSession` MUST pass an equivalent vector suite to claim conformance: `JSON.stringify`, `Object.keys`, `Object.getOwnPropertyNames`, `Reflect.ownKeys`, `Object.getOwnPropertySymbols`, for-in iteration, `structuredClone`, `util.inspect`, direct property access, frozen-state immutability, and the controlled escape hatch via `_unwrapSession` from `@prefig/upact/internal`.
+**Implementations MAY use `createSession` from `@prefig/upact`**, which provides the normative opacity guarantee tested in `tests/runtime.test.ts` across nine reflection vectors — `JSON.stringify`, `Object.keys`, `Object.getOwnPropertyNames`, `Reflect.ownKeys`, `Object.getOwnPropertySymbols`, for-in iteration, `structuredClone`, `util.inspect`, direct property access — plus frozen-state immutability and the controlled escape hatch via `_unwrapSession` from `@prefig/upact/internal`. Implementations that do not use `createSession` MUST pass an equivalent suite to claim conformance.
 
 The runtime kernel is normative because the privacy minima at the type level are insufficient on their own — TypeScript's structural typing cannot prevent runtime reflection from leaking substrate state. The kernel turns the type-level guarantee into a runtime guarantee, centrally audited.
 
@@ -246,7 +246,7 @@ Conforming adapter packages MUST hold substrate state out of public reflection. 
 
 The application's freedom to import substrate libraries directly is preserved — that is a transparent coupling, visible in `package.json` and reviewable in code. What §7.5 closes is the asymmetric case where an application uses upact's surface AND quietly cheats the contract through adapter-internal access paths. The conformance bar at §7.5 keeps the binding genuine.
 
-Conformance verification: adapter packages SHOULD ship a sixteen-vector reflection test (mirroring the pattern in `@prefig/upact-supabase/tests/back-channel.test.ts`) asserting that no sentinel substrate token leaks via any common reflection path. Such tests are the operational form of §7.5.
+Conformance verification: adapter packages SHOULD ship a sixteen-case back-channel reflection test (mirroring the pattern in `@prefig/upact-supabase/tests/back-channel.test.ts`) asserting that no sentinel substrate token leaks via any common reflection path. Such tests are the operational form of §7.5.
 
 ## §8. Identity lifecycle
 
@@ -266,7 +266,7 @@ A provider claiming conformance:
 1. SHALL ship a written conformance statement listing the version of this spec it conforms to and the capabilities it self-declares.
 2. SHALL document its substrate, its threat model, and any deviations from the spec's SHOULD-clauses (its MUST-clauses are not negotiable).
 3. SHALL document its `AuthError` mapping table (which substrate errors map to which §6.5 code).
-4. SHALL pass a sixteen-vector reflection test on the adapter instance (per §7.5) and document the test's existence in the conformance statement.
+4. SHALL pass a sixteen-case back-channel reflection test on the adapter instance (per §7.5) and document the test's existence in the conformance statement.
 5. SHALL pass the conformance test suite associated with its claimed version (test suite TBD; targeted for v0.2 or a funded follow-up).
 
 A `CONFORMANCE.md` template ships in this repository with filled-in examples for the Supabase and SimpleX reference adapters.
@@ -289,7 +289,7 @@ This specification is versioned. v0.1 is the first public draft. Breaking change
 
 Capabilities present in §5.1 are normative for v0.1. Capabilities outside §5.1 are advisory and follow registry conventions to be specified in v0.2. The registry MAY accept new capabilities on demonstrated implementation by at least two independent providers AND demonstrated consumption by at least one application.
 
-Governance posture: v0.x decisions are made by the upact maintainer group on rough consensus. At v1.0, decisions about the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors. A *conforming-adapter author* is an organisation or individual who maintains a published `@prefig/upact-*` package that passes the sixteen-vector reflection test, has shipped a `CONFORMANCE.md` against a specific spec version, and has actively maintained the adapter (a PR or release in the last twelve months). Capability-vocabulary additions and MUST-clause changes after v1.0 require a working-group decision plus implementation by ≥2 independent conforming adapters and consumption by ≥1 shipped application; MUST-clause changes additionally require a migration period during which the old behaviour remains valid.
+Governance posture: v0.x decisions are made by the upact maintainer group on rough consensus. At v1.0, decisions about the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors. A *conforming-adapter author* is an organisation or individual who maintains a published `@prefig/upact-*` package that passes the sixteen-case back-channel reflection test, has shipped a `CONFORMANCE.md` against a specific spec version, and has actively maintained the adapter (a PR or release in the last twelve months). Capability-vocabulary additions and MUST-clause changes after v1.0 require a working-group decision plus implementation by ≥2 independent conforming adapters and consumption by ≥1 shipped application; MUST-clause changes additionally require a migration period during which the old behaviour remains valid.
 
 ## §12. Deferred decisions (the register)
 
@@ -298,7 +298,7 @@ v0.1 was scoped to what shipped adapters need. Items below were proposed but did
 | Decision | Substance | Why deferred from v0.1 |
 |---|---|---|
 | **D3 — `issueRenewal` semantics normative** | Pick identity-bound vs substrate-holder semantics as normative in §6.4 | Recommended Option A (identity-bound) per planning conversation; formal normative wording deferred until divergence between adapters becomes a consumer issue |
-| **D7 — `continuation` field on Upactor** | Substrate-known transitions between identifiers (rotation, migration, rekey, reauth) | No shipped substrate currently emits transitions through the port. Reactivated when a substrate that does (Mastodon `Move`, Convex reactive rotation, etc.) ships an adapter. |
+| **D7 — `continuation` field on Upactor** | Substrate-known transitions between identifiers (rotation, migration, rekey, reauth) | No shipped substrate currently emits transitions through the port. Reactivated when a substrate that does (Mastodon `Move`, Convene reactive rotation, etc.) ships an adapter. |
 | **D8 — `watch` capability on the port** | `watch(context): AsyncIterable<Upactor \| null>` for substrate-side push events | Same as D7. Push-shaped substrates need an adapter first. |
 | ~~**D9 — `issueRenewal` OPTIONAL in §6.4**~~ | **Closed v0.1.1.** Normative text added: providers MUST return `null` when renewal is unsupported. | Concrete need surfaced by OIDC adapter (some IDPs issue no refresh token). |
 | ~~**D6 — `provenance` field on Upactor**~~ | **Closed v0.1.1.** `provenance: { substrate, instance? }` added to §4.5. | OIDC adapter needs cross-IDP discrimination at the port level. |
@@ -325,10 +325,18 @@ Brief sketches of providers shipped or deferred against this port.
 
 **Shipped at v0.1.2:**
 
-- **`@prefig/upact-mastodon`** — direct Mastodon REST API adapter (per-login instance discovery, dynamic OAuth client registration, no token expiry). Substrate is "any Mastodon-API-compatible server"; Mastodon proper validated, forks (Pleroma, Akkoma, GoToSocial) MAY work via API compatibility but are not validated at v0.1.0. Capabilities: `[]`. Lifecycle: `expires_at: undefined`, `renewable: 'reauth'` (Mastodon access tokens never auto-expire per F6). Provenance: `{ substrate: 'mastodon', instance: <origin> }`. Identifier derivation: `sha256(actor.url)[:32]` per F3. Exists alongside `@prefig/upact-oidc` rather than replacing it: deployments with a fixed instance keep Path B (OIDC + Authentik); deployments wanting fediverse-flexibility (any user-chosen instance) use this package. See `docs/adapter-shapes.md` for the deployment-shape table.
+- **`@prefig/upact-mastodon`** — direct Mastodon REST API adapter (per-login instance discovery, dynamic OAuth client registration, no token expiry). Substrate is "any Mastodon-API-compatible server"; Mastodon proper validated, independent Mastodon-API-compatible implementations (Pleroma, Akkoma, GoToSocial) MAY work via API compatibility but are not validated at v0.1.0. Capabilities: `[]`. Lifecycle: `expires_at: undefined`, `renewable: 'reauth'` (Mastodon access tokens never auto-expire per F6). Provenance: `{ substrate: 'mastodon', instance: <origin> }`. Identifier derivation: `sha256(actor.url)[:32]` per F3. Exists alongside `@prefig/upact-oidc` rather than replacing it: deployments with a fixed instance keep Path B (OIDC + Authentik); deployments wanting fediverse-flexibility (any user-chosen instance) use this package. See `docs/adapter-shapes.md` for the deployment-shape table.
+
+**Shipped at v0.1.3:**
+
+- **`@prefig/upact-ember`** — ember presence-credential substrate (offline Ed25519 chain verification: no server, no registry, no network). Pre-conforming; the adapter is the verifier role, byte-pins a configured genesis as trust anchor, and derives `Upactor.id` as a salted per-scope hash so the substrate's stable member key never crosses the port. Capabilities: `[]`. Lifecycle: `renewable: 'represence'` — the first shipped represence substrate.
+
+- **`@prefig/upact-eudi`** — OpenID4VP 1.0 / HAIP relying party for EUDI-profile wallets (German PID; sandbox posture until the ecosystem ships). Enforcement camp: a construction-time declared-attribute policy freezes the DCQL query to boolean age predicates and possession-only checks; legal names, birthdates, addresses, and contact identifiers throw at construction per §7.1/§7.3. Capabilities: `[]`. Lifecycle: earliest credential expiry, `renewable: 'reauth'`.
+
+- **`@prefig/upact-atproto`** — ATProto / Bluesky OAuth adapter (handle→DID resolution, PAR + PKCE + DPoP via `@atproto/oauth-client-node`). Enforcement camp. `Upactor.id` is derived from the DID, which survives PDS migration — the first shipped evidence for the deferred D7 (`continuation`); see `docs/cross-adapter-findings.md` F11. Capabilities: `[]`.
 
 The application code does not change across these. The deployment chooses the provider; the port carries the rest.
 
 ---
 
-*Document version: 0.1.2. AI-co-authored under disclosure (see authorship note above). Decision lineage is in `git log` and the §12 register.*
+*Document version: 0.1.3. AI-co-authored under disclosure (see authorship note above). Decision lineage is in `git log` and the §12 register.*

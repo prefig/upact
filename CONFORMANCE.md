@@ -41,11 +41,11 @@ This adapter uses `createSession` from `@prefig/upact` for Session construction.
 
 OR
 
-This adapter does not use `createSession`. The adapter's Session implementation passes the sixteen-vector reflection test at `tests/back-channel.test.ts` (vectors: JSON.stringify, Object.keys, Object.getOwnPropertyNames, Reflect.ownKeys, Object.getOwnPropertySymbols, for-in, structuredClone, util.inspect, direct property access by name, Object spread, wrapped JSON.stringify, and cast access to common substrate-property names).
+This adapter does not use `createSession`. The adapter's Session implementation passes a reflection suite equivalent to the runtime kernel's (`@prefig/upact` `tests/runtime.test.ts`): JSON.stringify, Object.keys, Object.getOwnPropertyNames, Reflect.ownKeys, Object.getOwnPropertySymbols, for-in, structuredClone, util.inspect, direct property access, frozen-state immutability, and the `_unwrapSession` escape hatch.
 
 ## Adapter back-channel closure
 
-This adapter passes a sixteen-vector reflection test (`tests/back-channel.test.ts`) asserting that no sentinel substrate token leaks through the adapter instance.
+This adapter passes a sixteen-case back-channel reflection test (`tests/back-channel.test.ts`) asserting that no sentinel substrate token leaks through the adapter instance.
 
 ## Deviations from SHOULD clauses
 
@@ -79,7 +79,7 @@ Casual coordination. Supabase Auth is a centralised service operated by Supabase
 `['email', 'recovery']`: for users with a confirmed email address (non-empty `user.email`).
 `[]`: for users without a confirmed email address.
 
-Concrete consumer: dyad M1 UI gates on `capabilities.has('email')` to show or hide email-related settings. `recovery` is bundled with `email` because the same email address that identifies the user is the recovery channel; they are not independently affords.
+Concrete consumer: dyad M1 UI gates on `capabilities.has('email')` to show or hide email-related settings. `recovery` is bundled with `email` because the same email address that identifies the user is the recovery channel; they are not independent affordances.
 
 ## AuthError mapping table
 
@@ -101,7 +101,7 @@ This adapter uses `createSession` from `@prefig/upact` for Session construction.
 
 ## Adapter back-channel closure
 
-This adapter passes a sixteen-vector reflection test at `tests/back-channel.test.ts`. Sentinel values for `__internalToken`, `__anonKey`, and `__url` on a mock `SupabaseClient` are verified unreachable through JSON.stringify, Object.keys, Object.getOwnPropertyNames, Reflect.ownKeys, Object.getOwnPropertySymbols, for-in, structuredClone, util.inspect, direct property access by name, Object spread, wrapped JSON.stringify, and cast access to `client`, `supabase`, `_client`.
+This adapter passes a sixteen-case back-channel reflection test at `tests/back-channel.test.ts`. Sentinel values for `__internalToken`, `__anonKey`, and `__url` on a mock `SupabaseClient` are verified unreachable through JSON.stringify, Object.keys, Object.getOwnPropertyNames, Reflect.ownKeys, Object.getOwnPropertySymbols, for-in, structuredClone, util.inspect, direct property access by name, Object spread, wrapped JSON.stringify, and cast access to `client`, `supabase`, `_client`.
 
 ## Deviations from SHOULD clauses
 
@@ -109,7 +109,7 @@ None.
 
 ## Identifier derivation
 
-`Upactor.id` is set directly from `user.id` (the Supabase Auth UUID). Supabase UUIDs are opaque random identifiers (`gen_random_uuid()`); they are not derivable from user-supplied identifiers (email, phone). No hashing is applied. The raw UUID is not email-shaped and carries no information about the user visible at the application layer.
+`Upactor.id` is set directly from `user.id` (the Supabase Auth UUID). Supabase Auth mints these as random v4 UUIDs in GoTrue (`uuid.NewV4()`); they are not derivable from user-supplied identifiers (email, phone). No hashing is applied. The raw UUID is not email-shaped and carries no information about the user visible at the application layer.
 
 ---
 
@@ -123,7 +123,7 @@ None.
 
 ## Substrate
 
-SimpleX Chat daemon: a local IPC process exposing a JSON command API. Pre-conforming substrate: the SimpleX local profile carries `localDisplayName`, `agentUserId` (UUID), and a handful of status flags. There is no central directory; profiles are application-scoped and anonymous. The adapter is thin: mostly type translation.
+SimpleX Chat daemon: a local WebSocket process exposing a JSON-enveloped command API. Pre-conforming substrate: the SimpleX local profile carries `localDisplayName`, `agentUserId` (an Int64 local row id, JSON-encoded as a string), and a handful of status flags. There is no central directory; profiles are application-scoped and anonymous. The adapter is thin: mostly type translation.
 
 ## Threat model
 
@@ -153,7 +153,7 @@ This adapter uses `createSession` from `@prefig/upact` for Session construction.
 
 ## Adapter back-channel closure
 
-This adapter passes a sixteen-vector reflection test at `tests/back-channel.test.ts`. Sentinel values for `__internalToken`, `__socketPath`, and `__profileData` on a mock `SimpleXClient` are verified unreachable through all standard reflection vectors and cast access to `client`, `simpleXClient`, `_client`.
+This adapter passes a sixteen-case back-channel reflection test at `tests/back-channel.test.ts`. Sentinel values for `__internalToken`, `__socketPath`, and `__profileData` on a mock `SimpleXClient` are verified unreachable through all standard reflection vectors and cast access to `client`, `simpleXClient`, `_client`.
 
 ## Deviations from SHOULD clauses
 
@@ -161,4 +161,4 @@ None.
 
 ## Identifier derivation
 
-`Upactor.id` is derived from `user.agentUserId` (a UUID string) via `SHA-256(agentUserId).slice(0, 32)`: the first 32 hex characters of the SHA-256 digest. The derivation is deterministic per `agentUserId` (stable across sessions for the same profile) and not reversible from the application layer. The hash is implemented with the Web Crypto API (`crypto.subtle.digest`).
+`Upactor.id` is derived from `user.agentUserId` (an Int64 local row id, serialised as a string) via `SHA-256(agentUserId).slice(0, 32)`: the first 32 hex characters of the SHA-256 digest. The derivation is deterministic per `agentUserId` (stable across sessions for the same profile). Note the preimage space is small sequential integers, so the hash gives type-opacity at the port, not preimage resistance: a party that suspects a specific `agentUserId` can confirm it by recomputation. Since `agentUserId` is a local row id that is itself meaningless outside the daemon's own database, this confirmability discloses nothing an application-layer observer can use; a future revision MAY add a per-install salt. The hash is implemented with the Web Crypto API (`crypto.subtle.digest`).

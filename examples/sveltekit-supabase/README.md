@@ -30,4 +30,4 @@ npm run dev
 
 ## Swapping the substrate
 
-Replace `@prefig/upact-supabase` with `@prefig/upact-simplex` (or a future `@prefig/upact-oidc`) in `hooks.server.ts`. The dashboard, layout, and sign-in form are substrate-agnostic — they depend only on `IdentityPort` and `Upactor`.
+Replace `@prefig/upact-supabase` with `@prefig/upact-simplex` (or `@prefig/upact-oidc`) in `hooks.server.ts`. The dashboard, layout, and sign-in form are substrate-agnostic — they depend only on `IdentityPort` and `Upactor`.

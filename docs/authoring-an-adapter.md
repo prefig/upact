@@ -3,8 +3,8 @@
 **Status: draft for maintainer review.**
 
 The path from "my substrate isn't covered" to a published `@prefig/upact-*`
-package. Everything here is distilled from the five shipped adapters
-(supabase, simplex, oidc, mastodon, ember) and the findings in
+package. Everything here is distilled from the seven shipped adapters
+(supabase, simplex, oidc, mastodon, ember, eudi, atproto) and the findings in
 [cross-adapter-findings.md](cross-adapter-findings.md); nothing is
 speculative. Normative requirements live in [SPEC.md](../SPEC.md); where this
 guide and the spec disagree, the spec wins.
@@ -44,7 +44,7 @@ the adapter you need. This is how to build it.
 
 1. **Package and constructor.** `@prefig/upact-<substrate>`, factory-only
    (no class form): closure capture is how §7.5 conformance is most genuinely
-   satisfied (Decision 11). The constructor signature should reveal exactly
+   satisfied (SPEC §7.5). The constructor signature should reveal exactly
    what substrate state the adapter binds to; see the signature catalogue in
    adapter-shapes.md.
 
@@ -85,7 +85,7 @@ the adapter you need. This is how to build it.
    malformed or unrecognisable. The worked OIDC mapping table is in finding
    G2 and `@prefig/upact-oidc/CONFORMANCE.md`.
 
-8. **Prove conformance, then register.** Pass the sixteen-vector reflection
+8. **Prove conformance, then register.** Pass the sixteen-case back-channel reflection
    test (no session or legible identifier reachable via `JSON.stringify`,
    `structuredClone`, `util.inspect`, or the other vectors; every shipped
    adapter's test suite includes it). Write a `CONFORMANCE.md` against the
@@ -100,11 +100,11 @@ the adapter you need. This is how to build it.
 - Do not widen the port for multi-step authentication flows. OAuth dances,
   magic links, and verification flows are resolved by IDP delegation
   (Path B): the adapter consumes terminal tokens; the port stays one-shot
-  (finding F4, Decision 10).
+  (finding F4; SPEC §6 keeps the port one-shot).
 - Do not surface network-legible identifiers through the Upactor, whatever
   the convenience (finding F3).
 - Do not model authorization as capabilities. Roles are application-owned;
-  the port refuses them by design (SPEC §4).
+  the port refuses them by design (SPEC §3.1).
 - Do not declare capabilities speculatively to look feature-rich (§5.1's
   growth discipline exists precisely because that erodes the signal).
 
@@ -116,5 +116,5 @@ clauses move to a working group of conforming-adapter authors (SPEC §11).
 Authoring an adapter is how your substrate's shape gets a vote.
 
 Sources: [adapter-shapes.md](adapter-shapes.md) ·
-[cross-adapter-findings.md](cross-adapter-findings.md) · the five shipped
-`CONFORMANCE.md` files. Draft 2026-07-03.
+[cross-adapter-findings.md](cross-adapter-findings.md) · the seven shipped
+`CONFORMANCE.md` files. Draft 2026-07-03; adapter count updated 2026-08-28.

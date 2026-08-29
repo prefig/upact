@@ -18,7 +18,7 @@ These are observations and patterns derived from working through multiple substr
 
 **The principle.** upact's capability vocabulary is intentionally minimal and stable. Adapter authors do not expand it to fit substrate-rich capability sets. The constraint is what binds; growth defeats the purpose.
 
-**Classification.** Spec-relevant (§5 capabilities note); Decision 11 evidence (binding-mechanism through vocabulary stability).
+**Classification.** Spec-relevant (§5 capabilities note); binding-mechanism evidence (vocabulary stability; SPEC §5.1).
 
 ## F2. Per-user-session adapter binding shape (third pattern)
 
@@ -34,7 +34,7 @@ These are observations and patterns derived from working through multiple substr
 
 The Supabase request-bound shape is actually the special case (the cookie binds request → user implicitly); per-user-session is the dominant shape for enforcement-camp adapters.
 
-**Classification.** Spec-relevant (`docs/adapter-shapes.md` should enumerate the three binding shapes and note which substrates fit which); Decision 11 evidence (binding-shape consistency across adapters is part of the conformance bar).
+**Classification.** Spec-relevant (`docs/adapter-shapes.md` should enumerate the three binding shapes and note which substrates fit which); binding-shape evidence (consistency across adapters is part of the §7.5 conformance bar).
 
 ## F3. Network-legible identifier vs port-opaque identifier
 
@@ -60,19 +60,21 @@ The architectural pivot to **Path B (IDP delegation)** resolved this without gro
 
 **Generalisation.** When the substrate is OIDC-shaped, the port consumes terminal OIDC tokens, never participates in the OAuth dance. The flow-aware port operation that would otherwise be needed is unnecessary because the IDP exists at a different architectural layer.
 
-**Classification.** Roadmap: Decision 10 closed without port shape change.
+**Classification.** Closed without port shape change (SPEC §6: the port stays one-shot).
+
+*(There is no F5 in this document; the F-numbers come from the source conversation arc, and F5 never landed here.)*
 
 ## F6. Lifecycle modelling has multiple shapes
 
-**Observation.** Mastodon access tokens do not auto-expire (per docs.joinmastodon.org/api/oauth-tokens: *"tokens will not expire automatically and will become invalid only when deleted by a user or revoked by the app"*). The Mastodon adapter's `lifecycle.expires_at` is therefore `undefined`, distinct from a TTL of zero or an unset-by-oversight `undefined`.
+**Observation.** Mastodon access tokens do not auto-expire (per docs.joinmastodon.org/api/oauth-tokens: *"tokens will not expire automatically and will become invalid only when deleted by a user or revoked by the app"*). The Mastodon adapter's `lifecycle.expires_at` is therefore `undefined`, distinct from a TTL of zero or an unset-by-oversight `undefined`. Caveat (2026-08): Mastodon's OAuth roadmap (mastodon/mastodon#34316) plans expiring access tokens by default in 5.0; when that ships, this row moves to explicit TTL.
 
-OIDC tokens have an explicit `exp` claim and map naturally to `lifecycle.expires_at`. Convene's encounter identities have `'represence'` rotation. Reticulum's Destination Hashes never expire. Four distinct lifecycle shapes across the substrates currently in scope:
+OIDC tokens have an explicit `exp` claim and map naturally to `lifecycle.expires_at`. ember's presence credentials have `'represence'` rotation. Reticulum's Destination Hashes never expire. Four distinct lifecycle shapes across the substrates currently in scope:
 
 | Pattern | Example | `expires_at` | `renewable` |
 |---|---|---|---|
 | Explicit TTL | OIDC, Supabase session | concrete timestamp | `'reauth'` |
 | No intrinsic TTL | Mastodon OAuth tokens | `undefined` | `'reauth'` (require new flow if revoked) |
-| Per-encounter rotation | Convene `'represence'` | concrete timestamp; id rotates on renewal | `'represence'` |
+| Per-encounter rotation | ember presence credentials | concrete timestamp; id rotates on renewal | `'represence'` |
 | Never expires | Reticulum Destination Hash | unset | `'never'` (or `'reauth'` only if user rotates keys) |
 
 **Classification.** Spec-relevant: `SPEC.md` §8 (lifecycle) should enumerate these shapes explicitly. The current text under-documents the meaning of `expires_at: undefined` vs unset.
@@ -87,7 +89,7 @@ If an application later wants email for some substrate-specific use, it imports 
 
 **The principle.** The OIDC adapter's scope request policy is one of the most concrete expressions of the binding posture: what scopes the adapter requests determines what claims it could surface. Requesting less is a structural commitment that surfacing more becomes architecturally costly.
 
-**Classification.** Implemented: `@prefig/upact-oidc` v0.1.0 enforces this at construction time: `email`, `phone`, `address`, and `groups` scopes throw immediately. Default scopes: `['openid', 'offline_access']`. Spec-relevant note in conformance statement template (§10) recommending that OIDC-based adapters declare their scope policy.
+**Classification.** Implemented: `@prefig/upact-oidc` v0.1.0 enforces this at construction time: `email`, `phone`, `address`, and `groups` scopes throw immediately. Default scopes: `['openid', 'offline_access']`. Spec-relevant note in conformance statement template (§9) recommending that OIDC-based adapters declare their scope policy.
 
 ## G2. OIDC error classification: substrate error strings to `AuthErrorCode`
 
@@ -108,7 +110,7 @@ Key tension: `invalid_grant` (refresh token expired) maps to `credential_rejecte
 
 ## H1. Empirical confirmation of F1, F2, F3, F6, G1 (2026-05-04)
 
-**Observation.** Findings F1 (capability minimality), F2 (per-user-session binding shape), F3 (network-legible vs port-opaque identifier), F6 (lifecycle multiple shapes), and G1 (minimum-scope discipline) were originally derived from Mastodon-as-analysis during the 2026-05-01 design conversation. With the shipped `@prefig/upact-mastodon` v0.1.0 adapter (Decision 12), each finding now has empirical confirmation in production code, not just analysis:
+**Observation.** Findings F1 (capability minimality), F2 (per-user-session binding shape), F3 (network-legible vs port-opaque identifier), F6 (lifecycle multiple shapes), and G1 (minimum-scope discipline) were originally derived from Mastodon-as-analysis during the 2026-05-01 design conversation. With the shipped `@prefig/upact-mastodon` adapter (the multi-instance fediverse exception to Path B), each finding now has empirical confirmation in production code, not just analysis:
 
 - **F1 confirmed:** `@prefig/upact-mastodon` ships `capabilities: []`. ActivityPub messaging affordances are real but no consumer gates on a `messaging` capability check; the adapter does not declare it.
 - **F2 confirmed:** the per-user-session binding shape is the dominant shape for enforcement-camp adapters with per-user OAuth tokens. Now empirically observed in two shipped adapters (`@prefig/upact-oidc` and `@prefig/upact-mastodon`), not just predicted.
@@ -116,7 +118,7 @@ Key tension: `invalid_grant` (refresh token expired) maps to `credential_rejecte
 - **F6 confirmed:** Mastodon access tokens never auto-expire. `lifecycle.expires_at: undefined`, `renewable: 'reauth'` is the explicit representation, distinct from "TTL of zero" or "unset by oversight."
 - **G1 confirmed:** `validateScopes` is a runtime guard that throws at construction time on any scope outside the allow-list `['read:accounts', 'profile']`. Default scopes are `['read:accounts']`. The adapter's `CONFORMANCE.md` documents this as the operational form of the privacy-minima discipline.
 
-A future ATProto / Bluesky adapter would re-test the same findings against a different identifier shape (DIDs), different discovery (PLC directory), and a different lifecycle (rotating refresh tokens with DPoP). It would also be the first concrete consumer of the deferred Decision 7 (`continuation`), since DID-based identity is portable across PDS migration.
+A future ATProto / Bluesky adapter would re-test the same findings against a different identifier shape (DIDs), different discovery (PLC directory), and a different lifecycle (rotating refresh tokens with DPoP). It would also be the first concrete consumer of the deferred D7 (`continuation`, SPEC §12), since DID-based identity is portable across PDS migration.
 
 **Classification.** Confirmation note (no spec change). Recorded for the institutional record.
 
@@ -158,13 +160,13 @@ The `IdentityProvider.scope` field encodes "what a session from this provider gr
 
 ## F11. Decision 7 (`continuation`) worked example: DID identity survives host migration
 
-**Observation.** The ATProto adapter is the first shipped consumer of the deferred Decision 7. Member id is derived as `SHA-256(did)[:32]`, which is stable across PDS migration because the DID is the durable anchor and the PDS is only its current host. This is strictly better than the Mastodon adapter's per-instance actor-URL id (F3), which does not survive an instance move. Concrete data point: a stable, opaque, host-independent id from an open substrate is achievable, and the derivation is a plain hash of the portable identifier.
+**Observation.** The ATProto adapter is the first shipped consumer of the deferred D7 (SPEC §12). Member id is derived as `SHA-256(did)[:32]`, which is stable across PDS migration because the DID is the durable anchor and the PDS is only its current host. This is strictly better than the Mastodon adapter's per-instance actor-URL id (F3), which does not survive an instance move. Concrete data point: a stable, opaque, host-independent id from an open substrate is achievable, and the derivation is a plain hash of the portable identifier.
 
-**Classification.** Decision-register evidence for Decision 7. `adapter-shapes.md`'s reserved ATProto row can now be filled from shipped code rather than predicted.
+**Classification.** Decision-register evidence for D7 (SPEC §12). `adapter-shapes.md`'s pending ATProto row can now be filled from shipped code rather than predicted.
 
 ## Sources
 
 - **Conversation arc:** 2026-05-01 spec design discussion (covering the move from direct-adapter to IDP-delegation, the self-binding posture, and the cross-substrate spec stress test).
-- **Cross-adapter ce:review:** May 2026 review across upact + upact-supabase + upact-simplex that opened Decisions 3, 4, 6, 7, 8, 9.
-- **Decision 12 closure (2026-05-04):** the multi-instance fediverse exception to Path B (closed in `SPEC.md` §12; deployment-shape table in `docs/adapter-shapes.md`). The shipped `@prefig/upact-mastodon` adapter is the empirical confirmation of F1–G1 above.
-- **ATProto provider build + Supabase auth cutover in dyad (2026-07-14):** F7–F11. First open-enrolment substrate taken to a working sign-in/join/onboarding flow, plus a full cutover making Supabase Auth one provider among several. F8 came from a red-team pass that found and fixed a real revocation-latency vulnerability before ship. Branch `atproto-provider` (dyad-berlin/dyad PR #115). See also the extraction map in `~/prefig/docs/dyad/research/2026-07-13-atproto-experiment-design.md`.
+- **Cross-adapter ce:review:** May 2026 review across upact + upact-supabase + upact-simplex that opened the §12 register entries D3, D6, D7, D8, D9.
+- **Multi-instance fediverse exception to Path B (2026-05-04):** deployment-shape table in `docs/adapter-shapes.md`. The shipped `@prefig/upact-mastodon` adapter is the empirical confirmation of F1–G1 above.
+- **ATProto provider build + Supabase auth cutover in dyad (2026-07-14):** F7–F11. First open-enrolment substrate taken to a working sign-in/join/onboarding flow, plus a full cutover making Supabase Auth one provider among several. F8 came from a red-team pass that found and fixed a real revocation-latency vulnerability before ship. Branch `atproto-provider` (dyad-berlin/dyad PR #115).
