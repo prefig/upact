@@ -1,132 +1,94 @@
-# Adapter shape sketches
+# Adapter shapes
 
-> **Status (v0.1.3):** sketches of substrates against the upact `IdentityPort` contract. Substrate sketches land alongside their shipped adapter. Sketches return when an adapter is genuinely on the way.
+How the seven shipped upact adapters map their substrates onto `IdentityPort` and `Upactor`.
+For app developers choosing an adapter, and adapter authors looking for precedent. Everything
+here is derived from the adapter source; file references point at the code that does it.
 
-## Why this document exists
+## The seven adapters at a glance
 
-Seven adapters have shipped (see the README table). This document records the shape choices of the first four — `@prefig/upact-supabase`, `@prefig/upact-simplex`, `@prefig/upact-oidc`, and `@prefig/upact-mastodon` — and the substrate-conformance camp each falls into, so future adapters inherit the cross-substrate validation that already happened, not a single-adapter pattern. Rows for `@prefig/upact-ember`, `@prefig/upact-eudi`, and `@prefig/upact-atproto` are pending; until then their `CONFORMANCE.md` files are the shape record.
+| Package | Substrate | Factory | Binding |
+|---|---|---|---|
+| `@prefig/upact-supabase` | Supabase Auth (password sign-in) | `createSupabaseAdapter(supabase: SupabaseClient)` | Per-request: the caller passes a request-bound client (cookies already attached); a module singleton is documented as incorrect |
+| `@prefig/upact-simplex` | SimpleX Chat daemon (WebSocket JSON-RPC) | `createSimpleXAdapter(client: SimpleXClient)` | Per-instance against a local daemon; the daemon is single-tenant, so at most one adapter per daemon process |
+| `@prefig/upact-oidc` | Any OIDC IDP (Authentik, Keycloak, ZITADEL, Dex) | `createOidcAdapter(config: OidcConfig, cookies: CookieJar, _client?: OidcClient)` | Per-request cookie jar; tokens live in an HMAC-signed session cookie, not in process memory |
+| `@prefig/upact-mastodon` | Any Mastodon instance (OAuth + `verify_credentials`) | `createMastodonAdapter(config: MastodonConfig, cookies: CookieJar)` | Per-request cookie jar, plus two module-scoped caches spanning requests: a `ClientStore` for per-instance OAuth app credentials and a `verify_credentials` cache (configurable, 60 s default) |
+| `@prefig/upact-ember` | `@prefig/ember` presence credentials, in-process | `createEmberAdapter(config: EmberConfig)` | Encounter-bound: one instance holds one verified session (`let current`) and all pending challenge nonces; state dies with the closure |
+| `@prefig/upact-eudi` | EUDI wallet (OpenID4VP 1.0 / HAIP, SD-JWT VC) | `createEudiAdapter(config: EudiConfig)` | Per-deployment instance: transaction store, HMAC transaction key, and single-use response codes are instance-local |
+| `@prefig/upact-atproto` | ATProto / Bluesky OAuth (DPoP, PAR, PKCE) | `createAtprotoAdapter(config: AtprotoConfig, _client?: AtprotoOAuthClient)` | Module-singleton OAuth client with in-memory state stores; single-process deployments only until stores are shared |
 
-The check is type-only. We sketch the *signatures* each adapter exposes, not their implementations. The signatures surface the substrate-specific assumptions encoded by each adapter's interface.
+## What each adapter puts on the `Upactor`
 
-### Substrates fall into two camps
+| Adapter | `id` | `display_hint` | `capabilities` | `lifecycle` | `provenance` |
+|---|---|---|---|---|---|
+| supabase | `user.id` verbatim (Supabase UUID, already opaque) | `user_metadata.display_name` | `'email'` + `'recovery'` iff the user has an email | not populated | not populated |
+| simplex | `SHA-256(agentUserId)` hex, `.slice(0, 32)` | `localDisplayName` | empty frozen set | not populated | not populated |
+| oidc | SHA-256 of `` `${sub}@${issuer}` ``, first 32 hex chars | `preferred_username`, else `name` | empty frozen set | `{ expires_at: new Date(claims.exp * 1000), renewable: 'reauth' }` | `{ substrate: 'oidc', instance: claims.iss }` |
+| mastodon | `sha256(actor.url)[:32]` | `display_name`, else `username` | empty frozen set | `{ expires_at: undefined, renewable: 'reauth' }` (tokens never auto-expire) | `{ substrate: 'mastodon', instance: instanceOrigin }` |
+| ember | `hex(SHA-256(utf8('upact-ember/id/v1') || pepper || scopeId || subjectPk))[:32]` | leaf link name or presented name, U+FFFD-stripped | empty frozen set | `{ renewable: 'never' }` for a founder root, else `{ expires_at, renewable: 'represence' }` | `{ substrate: 'ember', instance: hex(scopeId) }` |
+| eudi | SHA-256 over `'eudi'`, the single-use transaction nonce, and each presentation's `issuer` + `presentationTag`; per-authentication by design | never (everything human-readable in a PID is PII) | empty set | earliest credential expiry, `renewable: 'reauth'` | `{ substrate: 'eudi', instance: <issuer> }` |
+| atproto | `createHash('sha256').update(did, 'utf8').digest('hex').slice(0, 32)` | never (the handle is discarded) | empty set | `{ renewable: 'reauth' }`, no expiry | `{ substrate: 'atproto', instance: didMethod(did) }` (`did:plc`, `did:web`) |
 
-- **Pre-conforming substrates**: e.g. SimpleX (no central directory; anonymous unidirectional queues). The substrate's natural shape is already aligned with upact's MUST-NOTs. Adapters are mostly *type translation*, not architectural enforcement (thin packages).
-- **Enforcement substrates**: e.g. Supabase Auth, OIDC providers (Phase C). The substrate exposes far more than upact permits; the adapter does the work of stripping, hiding, and capability-bounding (thicker packages).
+Every adapter that produces a display hint trims it, omits it when empty, and rejects
+email-shaped values. The eudi id deserves a flag: it never repeats across `authenticate()`
+calls, so equal ids mean the same authentication, not the same person. Apps needing a
+returning identity on EUDI issue their own credential after eligibility is proven.
 
-`@prefig/upact-supabase` is the worked example of the *enforcement* case: Supabase's `User` shape exposes email, phone, JWT claims, `app_metadata`, `user_metadata`, all of which the adapter strips or hides. `@prefig/upact-simplex` is the worked example of the *pre-conforming* case: the SimpleX daemon's local profile carries `localDisplayName`, `agentUserId` (an Int64 local row id, serialised as a string), and a few status flags; the adapter hashes that id, sanitises the display name, and that's roughly it. `@prefig/upact-oidc` is the enforcement case for any OIDC-compliant IDP. `@prefig/upact-mastodon` is the enforcement case for Mastodon-API-compatible servers with per-login instance discovery (the multi-instance fediverse exception to Path B; see the deployment-shape table below).
+## Strippers and translators
 
-## Substrates compared (first four adapters, as shipped)
+All seven mappers are allow-lists by construction: forbidden fields are never read, so
+nothing is copied and deleted. Within that, two situations occur.
 
-| Property | Supabase | SimpleX | OIDC | Mastodon |
-|---|---|---|---|---|
-| Substrate-conformance camp | Enforcement | Pre-conforming | Enforcement | Enforcement |
-| Identity-`id` stability | Account lifetime (years) | Application-scoped, derived from the local profile id | Stable within issuer: SHA-256(`sub@iss`)[:32] | Stable per (account, instance): SHA-256(`actor.url`)[:32] |
-| Substrate "user object" | A `User` record in `auth.users` | A local SimpleX profile (no server-side record) | ID token claims (sub, iss, exp, preferred_username, name) | `verify_credentials` Account response (id, acct, username, display_name, url; ~25 other fields stripped at the network boundary) |
-| Adapter binding shape | Per-request: `event.locals.supabase` is cookie-bound at hook time | Per-instance: long-lived daemon connection, single-tenant per process | Per-request: `event.cookies` (CookieJar) + inbound Request | Per-request: `event.cookies` (CookieJar) + per-process `ClientStore` for OAuth client credentials |
-| `currentUpactor` synchrony | Cookies bound to request: fast local read | Daemon round-trip (no remote server, but local IPC) | Cookie read + optional refresh token grant | Cookie read + `verify_credentials` round-trip (cached per-token, default 60s) |
-| Capabilities (v0.1.x) | `{ email, recovery }` for users with email; `{ recovery }` otherwise | `[]` | `[]` (IDP-agnostic; application layer assigns capabilities) | `[]` (ActivityPub messaging is real but not declared per F1) |
-| `display_hint` source | `user.user_metadata.display_name` if non-empty after trim | `User.localDisplayName` if non-empty after trim AND not email-shaped | `preferred_username` then `name`; email-shaped values rejected | `display_name` then `username`; email-shaped values rejected |
-| `lifecycle` | not populated (v0.1.x) | not populated (v0.1.x) | `{ expires_at: new Date(exp * 1000), renewable: 'reauth' }` | `{ expires_at: undefined, renewable: 'reauth' }` (F6: Mastodon access tokens never auto-expire) |
-| `provenance` | not populated (v0.1.x) | not populated (v0.1.x) | `{ substrate: 'oidc', instance: issuer }` | `{ substrate: 'mastodon', instance: <origin URL> }` |
-| Recovery semantics | Email-based (Supabase Auth) | None (start a new profile) | IDP-managed refresh token rotation | None: revocation is the only path, full re-auth required |
-| Threat model | Casual coordination | Anonymous / pseudonymous | Standard OIDC delegate trust | Casual coordination + pseudonymous fediverse use; trusts the user-supplied instance |
-| Adapter thickness | Thick (lots to strip) | Thin (mostly type translation) | Thick (scope enforcement, token storage, refresh) | Thick (instance discovery, dynamic client registration, scope enforcement, allow-list claims) |
+Strippers face a rich substrate object and read a few fields off it. Supabase reads three
+things from a `User`; Mastodon narrows `verify_credentials` (avatar, follower counts,
+`source`, and the rest) to a five-field `AccountClaims` at the type boundary; OIDC reads
+five claims from the ID token and documents the ones it refuses; SimpleX reads three of
+seven-plus `User` fields; EUDI drops every disclosed claim value, keeping only boolean
+predicate outcomes that must all be `true`.
 
-## Adapter constructor signatures
+Translators have little to strip because the substrate hands over little. ATProto learns
+only the DID ("there is nothing else to strip", per its mapper header); ember's mapper takes
+plain primitives (`scopeId`, `subjectPk`, `leafName`, `expiresAt`), never an ember result type.
 
-The constructor reveals what substrate state the adapter binds to. All shipped adapters are **factory-only** (no class form): SPEC §7.5 closure-capture conformance is most genuinely satisfied by the factory shape, and the audit found no concrete forward-looking use case the factory does not satisfy.
+## Patterns worth copying
 
-```ts
-// Supabase: request-bound SupabaseClient (cookies via @supabase/ssr).
-// Substrate state held in closure scope.
-export function createSupabaseAdapter(supabase: SupabaseClient): IdentityPort;
+- Closure-held substrate state. Every factory returns an object literal whose methods close
+  over the substrate handle; no field on the returned object reaches it. The conformance
+  check is `(adapter as any).client === undefined` and fifteen siblings.
+- Back-channel tests. Mastodon's `back-channel.test.ts` has sixteen `it` cases, one per
+  reflection vector: `JSON.stringify`, `Object.keys`, `getOwnPropertyNames`, `Reflect.ownKeys`,
+  property symbols, `for-in`, `structuredClone`, `util.inspect` with `showHidden`, six named
+  cast accesses (`.client`, `.accessToken`, `.cookieSecret`, ...), object spread, and wrapped
+  stringify. Supabase covers the same sixteen vectors in two `it` cases via a shared
+  `assertNoLeak` helper, driven by sentinel strings planted inside a fake client.
+- Construction-time throws, before any network activity. OIDC's `validateScopes` throws on
+  `email`, `phone`, `address`, `groups` and on anything outside `openid | offline_access | profile`.
+  Mastodon's allows only `read:accounts | profile` and refuses an empty scope list. EUDI's
+  `freezeAttributePolicy` rejects fourteen forbidden PID claim paths (names, birthdate,
+  address, `personal_administrative_number`, ...), allows only `age_equal_or_over/<t>` and
+  `age_over_<t>` predicates, and returns a deep-frozen policy built from a single read of each
+  config property, so accessor tricks cannot swap values after validation. Ember parses the
+  genesis at construction and throws when `config.audience` exceeds 128 UTF-8 bytes.
+- Frozen derived state. Capability sets are `Object.freeze`d; EUDI's `KNOWN_CREDENTIAL_TYPES`
+  additionally overrides `add`/`delete`/`clear` to throw at runtime.
+- Out-of-port extensions. Multi-step flows keep `authenticate` one-shot and put the start
+  step beside the port: `buildAuthRedirect` (oidc, mastodon), `beginChallenge` (ember),
+  `buildPresentationDeeplink` (eudi), `beginAuthorization` (atproto).
 
-// SimpleX: per-instance, long-lived daemon connection.
-// Substrate state held in closure scope.
-export function createSimpleXAdapter(client: SimpleXClient): IdentityPort;
+## Choosing an adapter
 
-// OIDC: per-request CookieJar (SvelteKit event.cookies or equivalent).
-// Substrate tokens stored in HMAC-SHA256 signed session cookie.
-// Substrate state (tokens, config) held in closure scope.
-export function createOidcAdapter(
-  config: OidcConfig,
-  cookies: CookieJar,
-  _client?: OidcClient,
-): IdentityPort & OidcAdapterExtensions;
-
-// Mastodon: per-request CookieJar + module-scoped ClientStore (default
-// in-memory; pluggable for KV / Redis / Postgres). Per-login instance
-// resolution; dynamic OAuth client registration via POST /api/v1/apps
-// cached per-instance.
-export function createMastodonAdapter(
-  config: MastodonConfig,
-  cookies: CookieJar,
-): IdentityPort & MastodonAdapterExtensions;
-```
-
-**Generalisation:** there is no single shape of "substrate client." Each adapter takes whatever its substrate's read interface is. The Supabase adapter's request-bound client is one substrate's answer, not a precedent for others. The Mastodon adapter introduces a third shape detail: per-instance OAuth client credentials cached in a deployment-pluggable `ClientStore` because the substrate is "the user-chosen instance," not a fixed thing the deployment registered at construction.
-
-## Identity mapper signatures
-
-Whether the per-adapter mapper is sync or async is forced by substrate access patterns.
-
-```ts
-// Supabase: substrate User available synchronously after
-// supabase.auth.getUser() resolves. Pure mapper is feasible.
-function userToUpactor(user: User): Upactor;
-
-// SimpleX: id derivation hashes the substrate's profile id via Web Crypto API.
-// The substrate-User is available locally, but the id derivation itself
-// is async. (Async because Web Crypto is async; nothing about the
-// substrate forces an extra round trip.)
-async function userToUpactor(user: User): Promise<Upactor>;
-```
-
-**Generalisation:** adapters with substrate-User objects available in-memory MAY expose a sync mapper as a convenience; adapters whose mapping requires async work (Web Crypto, network round-trip, file I/O) MUST be async. The port operations themselves (SPEC §6) are all async, which is correct. Sync-mapper convenience is **substrate-specific**, not a port pattern future adapters should inherit.
-
-## §7.5 closure-capture conformance: all four adapters
-
-All four adapters hold their substrate state in closure scope. `(adapter as any).client` (and equivalent property names) returns `undefined` for each. Each ships a sixteen-case back-channel reflection test (`tests/back-channel.test.ts`) verifying that no sentinel substrate token leaks via any common reflection vector.
-
-The factory pattern is the operational form of §7.5: there is no instance property to reach for. Every adapter's tests assert this directly.
-
-## OIDC adapter specifics (v0.1.1 shipped)
-
-The IDP-delegation pattern (Path B): the OIDC adapter's substrate is "any OIDC-compliant IDP": Authentik, Keycloak, ZITADEL, or Dex (local dev rig). Mastodon, GitHub, Google, Auth0 etc. become *upstream* OAuth providers federated through the IDP, not direct upact substrates.
-
-Key decisions:
-- Scope policy enforces `email`/`phone`/`address`/`groups` exclusion at construction time (throws immediately).
-- `id` = SHA-256(`sub@iss`)[:32]: deterministic, not reversible, stable across refresh rotations.
-- Tokens stored in HMAC-SHA256 signed session cookie; never on the `Session` or `Upactor`.
-- `issueRenewal` is OPTIONAL (SPEC §12 D9): returns `null` if no refresh token present.
-- Two out-of-port extensions: `buildAuthRedirect()` (init phase) and `buildLogoutRedirect()` (logout).
-
-Convene, Reticulum, and fediverse-DID-based sketches return only if and when shipped adapters arrive: per the audit, sketches don't precede the shipped adapter.
-
-## Mastodon adapter specifics (v0.1.2 shipped)
-
-The fediverse-flexibility pattern (the multi-instance exception to Path B; see the deployment-shape table below): the Mastodon adapter's substrate is "any Mastodon-API-compatible server the user picks at login." Path B (OIDC + Authentik) is incompatible with arbitrary-instance UX because each instance must be preregistered at the IDP; the Mastodon adapter resolves the user-supplied instance and registers an OAuth client at login time.
-
-Key decisions:
-- Per-login instance discovery via `GET /api/v1/instance` (with v2 fallback). Bare hostname, WebFinger handle (`@alice@hachyderm.io`), and full URL inputs all resolve to the canonical origin.
-- Dynamic OAuth client registration via `POST /api/v1/apps`, cached per-instance in a pluggable `ClientStore` (default `InMemoryClientStore`, 30-day TTL).
-- Scope policy: allow-list `['read:accounts', 'profile']`. Default `['read:accounts']`. Forbidden scopes throw at construction time.
-- Allow-list claims mapping: only `id`, `acct`, `username`, `display_name`, `url` from `verify_credentials` reach the claims-mapper. The substrate's ~25 additional fields (avatar, header, fields, source, bot, locked, follower/following/statuses counts, last_status_at, created_at, ...) are stripped at the network boundary.
-- `id` = SHA-256(`actor.url`)[:32]. The actor URL is the F3 network-legible identifier; the hash is the port-opaque form.
-- `lifecycle.expires_at: undefined`, `renewable: 'reauth'` per F6. `issueRenewal` returns `null` unconditionally.
-- One out-of-port extension: `buildAuthRedirect()` (init phase). No `buildLogoutRedirect`: Mastodon has no end-session URL analog.
-- 16-vector reflection test passes; substrate state (access token, client credentials, instance origin, actor URL, cookie secret) lives entirely in closure.
-
-This is the first adapter in the project where F2's per-user-session binding shape was empirically observed in shipped code rather than predicted from analysis. The ATProto adapter has since shipped and confirmed the prediction: DID-based identity portability exercises the deferred D7 (`continuation`) — see cross-adapter-findings.md F11.
-
-## Choosing between OIDC and Mastodon adapters
-
-Path B (the OIDC adapter brokered through Authentik / Keycloak / ZITADEL) is the right answer for OIDC-shaped substrates with stable per-deployment instance configuration. It is the wrong answer for substrates whose UX requires per-login instance flexibility: each user picks their home instance at login time, and the instance is not knowable until the user types it. Mastodon and the rest of the fediverse fit this shape; Authentik's federation-source registration is per-instance and admin-mediated, which cannot be done at login time for an arbitrary instance.
-
-| Deployment | Adapter | Why |
-|---|---|---|
-| App authenticates against ONE fixed instance (your-org.social) | `@prefig/upact-oidc` + Authentik with that instance preregistered | Path B works; smallest surface |
-| App authenticates against ANY user-chosen Mastodon instance | `@prefig/upact-mastodon` (the direct adapter) | Path B's preregistration loop is incompatible with arbitrary-instance UX |
-| App authenticates against a closed list of partner instances | Either; lean `@prefig/upact-oidc` unless the partner list churns | Path B if list is stable; direct adapter if list is dynamic |
-
-`@prefig/upact-mastodon` is the first direct adapter of this shape. A future `@prefig/upact-atproto` (Bluesky) adapter would also qualify: DID-based identity is portable across PDSes, and the per-login resolution path is even more inherent. This is the multi-instance fediverse exception to Path B; pre-conforming substrates (SimpleX, Reticulum) are also direct adapters but for different reasons (the substrate's natural shape is already minimal, not because of per-login instance flexibility).
+- One IDP you operate, known at deploy time: oidc. Issuer, client id, and secret are fixed
+  config; users get no instance choice.
+- User-chosen instance at login: mastodon. `buildAuthRedirect` takes the instance per call
+  (hostname, `@user@host` handle, or URL) and registers an OAuth app there on first contact.
+- User-entered handle, portable identity: atproto. The id survives a PDS migration because it
+  hashes the DID, not a host-bound URL. Single-process only for now.
+- You already hold a request-bound Supabase client: supabase. Thinnest of the seven; password
+  sign-in only, OTP and magic links stay outside the port.
+- Local daemon, no web session at all: simplex. No cookies, no Request use; one profile
+  active per daemon process.
+- Offline, in-person presence credentials: ember. Pure in-process verification against a
+  pinned genesis; it never throws `SubstrateUnavailableError` because there is no substrate
+  to be down.
+- Proving eligibility against a state wallet: eudi. `currentUpactor` always returns `null`;
+  the app binds its own session by redeeming a single-use response code, and ids are
+  deliberately per-authentication.

@@ -333,7 +333,7 @@ Brief sketches of providers shipped or deferred against this port.
 
 - **`@prefig/upact-eudi`** — OpenID4VP 1.0 / HAIP relying party for EUDI-profile wallets (German PID; sandbox posture until the ecosystem ships). Enforcement camp: a construction-time declared-attribute policy freezes the DCQL query to boolean age predicates and possession-only checks; legal names, birthdates, addresses, and contact identifiers throw at construction per §7.1/§7.3. Capabilities: `[]`. Lifecycle: earliest credential expiry, `renewable: 'reauth'`.
 
-- **`@prefig/upact-atproto`** — ATProto / Bluesky OAuth adapter (handle→DID resolution, PAR + PKCE + DPoP via `@atproto/oauth-client-node`). Enforcement camp. `Upactor.id` is derived from the DID, which survives PDS migration — the first shipped evidence for the deferred D7 (`continuation`); see `docs/cross-adapter-findings.md` F11. Capabilities: `[]`.
+- **`@prefig/upact-atproto`** — ATProto / Bluesky OAuth adapter (handle→DID resolution, PAR + PKCE + DPoP via `@atproto/oauth-client-node`). Enforcement camp. `Upactor.id` is derived from the DID, which survives PDS migration (the first shipped evidence for the deferred D7 `continuation`, §12). Capabilities: `[]`.
 
 The application code does not change across these. The deployment chooses the provider; the port carries the rest.
 
