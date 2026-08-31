@@ -21,6 +21,10 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 - `jsr.json` synced to the package version (was stale at 0.1.0).
 
+### Release order (0.2.0 train)
+
+Publish core `@prefig/upact` 0.2.0 first (npm under a `next` dist-tag if staging; JSR has no dist-tags, so stage there with `0.2.0-rc.N` if needed — JSR cannot unpublish). Then the eight adapters at 0.2.0 with peer `^0.2.0`, then promote dist-tags, then a clean `npm install` smoke test of one adapter from the registry. Mixed installs (new adapter, old core pinned by the app) do not fail at install time: npm nests a private core copy under the adapter. Same-instance session flows stay correct under duplication (a session is meaningful only to the adapter instance that sealed it), but bump the whole train together.
+
 ### Fixed (documentation accuracy pass, 2026-08-28)
 
 - Corrected the runtime-kernel test description: nine reflection vectors plus frozen-state immutability and the `_unwrapSession` escape hatch (`tests/runtime.test.ts`); the sixteen-case count belongs to the adapter back-channel suite. Affected `README.md`, `SPEC.md` §7.4, `CONFORMANCE.md`.
