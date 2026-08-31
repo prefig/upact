@@ -18,7 +18,7 @@ upact's security surface is its port-level privacy guarantees. The following are
 
 - **Session opacity bypass.** A technique that lets application code unwrap a `Session` and recover the substrate handle or user identifier via any reflection vector (`JSON.stringify`, `util.inspect`, `structuredClone`, `Proxy`, `WeakMap` side-channels, etc.).
 - **Adapter back-channel leak.** A pattern that allows a conforming adapter to expose the substrate client (or substrate-internal tokens) through the adapter instance's enumerable properties or prototype chain, bypassing the closure-capture requirement of `SPEC.md` §7.5.
-- **`_unwrapSession` misuse vector.** A scenario where `_unwrapSession` from `@prefig/upact/internal` can be called by application code that is not supposed to have access to it, without importing from the `./internal` subpath explicitly.
+- **Unseal-capability leak.** A pattern that makes a session box's `unseal` reachable outside its adapter's closure — through an export, an instance property, an error object, a debug hook, or any other channel application code can reach.
 - **Capability-check bypass.** A pattern where `capabilities` on an `Upactor` can be mutated by application code after construction.
 - **`display_hint` email leakage.** An adapter pattern that allows email-shaped strings to reach `display_hint` in violation of §4.2 MUST NOT clauses.
 

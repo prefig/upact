@@ -53,7 +53,9 @@ plain primitives (`scopeId`, `subjectPk`, `leafName`, `expiresAt`), never an emb
 
 - Closure-held substrate state. Every factory returns an object literal whose methods close
   over the substrate handle; no field on the returned object reaches it. The conformance
-  check is `(adapter as any).client === undefined` and fifteen siblings.
+  check is `(adapter as any).client === undefined` and fifteen siblings. The session box
+  (`createSessionBox`, one per instance, first line of the factory) lives in the same
+  closure; a session is meaningful only to the adapter instance that sealed it.
 - Back-channel tests. Mastodon's `back-channel.test.ts` has sixteen `it` cases, one per
   reflection vector: `JSON.stringify`, `Object.keys`, `getOwnPropertyNames`, `Reflect.ownKeys`,
   property symbols, `for-in`, `structuredClone`, `util.inspect` with `showHidden`, six named
