@@ -72,9 +72,9 @@ export function createSessionBox<T>(): SessionBox<T> {
 	}
 
 	function unseal(session: Session): T | undefined {
-		const key = session as unknown;
-		if (typeof key !== 'object' || key === null) return undefined;
-		return sealed.get(key);
+		// WeakMap.get is spec'd to return undefined (never throw) for any
+		// key that cannot be held weakly, so unseal is total without a guard.
+		return sealed.get(session as unknown as object);
 	}
 
 	return { seal, unseal };
