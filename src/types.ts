@@ -68,14 +68,6 @@ export interface Upactor {
 }
 
 /**
- * Deprecated alias for compatibility with v0.1.0-draft consumers. Will be
- * removed in v0.2. New code should use `Upactor`.
- *
- * @deprecated Use `Upactor` instead.
- */
-export type UserIdentity = Upactor;
-
-/**
  * A presentation request a relying party issues to a keyring/wallet, asking the
  * holder to present membership. Substrate-agnostic, and named to map onto an
  * OpenID4VP authorization request so a Digital Credentials API adapter is a

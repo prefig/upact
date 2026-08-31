@@ -11,19 +11,19 @@
  * `JSON.stringify`, `Object.keys`, `Reflect.ownKeys`, `structuredClone`,
  * and other property-access vectors.
  *
- * `createSession` is the canonical factory: every conforming adapter
- * SHOULD use it to wrap substrate session values. The returned object is
- * frozen, has no enumerable substrate-shaped properties, returns
- * `'[upact:session]'` from `toJSON`, and stores the substrate value in a
- * module-private WeakMap keyed by the marker object.
+ * `createSessionBox` is the canonical mechanism: an adapter calls it once
+ * in its factory and holds the returned box in closure scope. `seal` wraps
+ * a substrate value into an opaque Session; `unseal` recovers it — but only
+ * for sessions this box sealed. The sealed value lives in the box's private
+ * WeakMap, so a session is meaningful only to the adapter instance that
+ * created it: another adapter, another instance of the same adapter, a
+ * structuredClone, or anything an application fabricates all unseal to
+ * `undefined`.
  *
- * `_unwrapSession` is the controlled escape hatch — adapters that need to
- * recover the substrate value (for example, to pass it back to the
- * substrate's logout API in `invalidate`) import it from
- * `@prefig/upact/internal`. The `/internal` import path is the contract
- * signal that this code is crossing the opacity boundary the spec is
- * trying to maintain. Application code MUST NOT import from
- * `@prefig/upact/internal`.
+ * The factory is exported from `@prefig/upact/internal` only. Importing
+ * that path is the contract signal that the caller is adapter code; the
+ * factory itself grants nothing — a fresh box can unseal no existing
+ * session. Application code MUST NOT import from `@prefig/upact/internal`.
  *
  * See SPEC.md §7.4 for the normative rule and `docs/adapter-shapes.md`
  * for the cross-substrate context.
@@ -31,35 +31,51 @@
 
 import type { Session } from './types.js';
 
-const SESSIONS = new WeakMap<object, unknown>();
-
 /**
- * Wrap a substrate session value into an upact-typed opaque Session.
+ * The seal/unseal capability pair for one adapter instance.
  *
- * Adapter authors call this once per successful `authenticate` call;
- * the returned `Session` satisfies §7.4 by construction.
+ * `unseal` is total: it returns the exact reference `seal` stored for a
+ * session from this box, and `undefined` for every other input — a foreign
+ * session, a clone, a fabricated object, `null`, a primitive. It never
+ * throws. Because `seal(undefined)` is rejected, `unseal(x) === undefined`
+ * means exactly "not sealed by this box".
  */
-export function createSession<T>(substrateValue: T): Session {
-	const marker = Object.create(null) as object;
-	Object.defineProperty(marker, 'toJSON', {
-		value: () => '[upact:session]',
-		enumerable: false,
-		writable: false,
-		configurable: false,
-	});
-	SESSIONS.set(marker, substrateValue);
-	Object.freeze(marker);
-	return marker as unknown as Session;
+export interface SessionBox<T> {
+	seal(substrateValue: T): Session;
+	unseal(session: Session): T | undefined;
 }
 
 /**
- * Recover the substrate value from a Session created by `createSession`
- * in this same process. Returns `undefined` for values not produced by
- * this factory (including sessions produced before a process restart,
- * since the WeakMap is process-local).
- *
- * Adapter-internal — applications MUST NOT import this.
+ * Create a session box. Call once per adapter instance, inside the adapter
+ * factory; keep both halves in closure scope and never export or store
+ * `unseal` where application code can reach it.
  */
-export function _unwrapSession<T>(session: Session): T | undefined {
-	return SESSIONS.get(session as unknown as object) as T | undefined;
+export function createSessionBox<T>(): SessionBox<T> {
+	const sealed = new WeakMap<object, T>();
+
+	function seal(substrateValue: T): Session {
+		if (substrateValue === undefined) {
+			throw new TypeError(
+				'createSessionBox: seal(undefined) is not allowed — unseal() reserves undefined for "not sealed by this box"',
+			);
+		}
+		const marker = Object.create(null) as object;
+		Object.defineProperty(marker, 'toJSON', {
+			value: () => '[upact:session]',
+			enumerable: false,
+			writable: false,
+			configurable: false,
+		});
+		sealed.set(marker, substrateValue);
+		Object.freeze(marker);
+		return marker as unknown as Session;
+	}
+
+	function unseal(session: Session): T | undefined {
+		const key = session as unknown;
+		if (typeof key !== 'object' || key === null) return undefined;
+		return sealed.get(key);
+	}
+
+	return { seal, unseal };
 }
