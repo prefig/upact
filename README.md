@@ -1,121 +1,78 @@
-# upact
+# @prefig/upact
 
-A provider-agnostic identity port for TypeScript web apps. The application sees a small, capability-negotiated `Upactor`; the substrate (Supabase Auth, OIDC, an identity wallet, peer-to-peer presence) stays behind the port.
+A provider-agnostic identity port for TypeScript web apps. Your application code depends on one small interface (`IdentityPort`) and one identity shape (`Upactor`); an adapter package (Supabase, OIDC, or your own) implements it against the real substrate. Swap the adapter and the app code does not change.
 
-## Posture
+The port is also a privacy boundary. `Upactor` is the whole of what an application can learn about a signed-in person:
 
-upact is named for the Ulysses pact that adopters make when building privacy-first social technologies that are architecturally hostile to extractive practices.
+- `id`: an opaque, stable string. Compare it by equality; it means nothing else.
+- `display_hint?`: a best-effort display string. Not unique, not a contact identifier.
+- `capabilities`: a `ReadonlySet<Capability>` the provider declares about itself. The v0.1 vocabulary is `'email' | 'recovery'`. You branch on capability presence, never on which provider is behind the port.
+- `lifecycle?`: expiry metadata when the substrate has an intrinsic TTL (`expires_at`, plus how renewal works: `'reauth'`, `'represence'`, or `'never'`).
+- `provenance?`: which substrate and instance the identity came from, for multi-IDP deployments.
 
-upact is a minimum-disclosure anti-corruption layer between your application and any supported identity-management substrate. The privacy minima at the port (no email, no phone, no IP, opaque sessions, enumerated capabilities) are commitments the application can no longer violate *through the upact-shaped path*. An application built on upact cannot quietly pivot the identity layer toward surveillance, retention, or third-party data-sharing without visible architectural change.
+There is no email, phone number, legal name, IP address, or device identifier on this type, and adapters are required to strip such fields before returning an `Upactor`. If your app needs a user's email address, this library is telling you it cannot have one through this interface.
 
-The port does not block pivots reachable through direct substrate-library import. Those remain visible to code review only. See `SPEC.md` §7.5 and `SECURITY.md` for the limit.
+## The four operations
 
-The constraint also shapes design. When the application cannot know a user's email, you build features that don't need it. This provides friction against reflexes inherited from an extraction- and retention-shaped social media ecosystem.
-
-upact sits on top of OIDC clients (`openid-client`, `arctic`) and auth frameworks that wrap them (`auth.js`), identity-broker IDPs (Authentik, Keycloak, ZITADEL), and identity protocols (DIDs, Verifiable Credentials): a typed-contract layer over what the application is permitted to know and what it has bound itself out of knowing.
-
-## Why upact
-
-These benefits accrue to every application using upact, regardless of motivation:
-
-- **Design discipline.** Structural limits on what you can know force design principles and features that don't depend on data you shouldn't have.
-- **A small, well-defined identity surface.** The `Upactor` type carries a handful of fields; substrate-shaped User types carry dozens.
-- **Privacy guarantees at call sites that use the port.** Code that uses `currentUpactor` cannot accidentally include email in logs, metrics, error reports, SSR-rendered HTML, or analytics events. Code that calls the substrate directly remains a code-review concern; treating substrate-library imports as a marked, audited boundary (e.g. only allowed in the substrate seam, forbidden in service code) extends the guarantee to the rest of the application.
-- **Audited opacity primitives.** Sessions cannot be unwrapped via `JSON.stringify`, `structuredClone`, `util.inspect`, or other inspection vectors. The runtime kernel is centrally tested across nine reflection vectors, plus frozen-state immutability and the `_unwrapSession` escape hatch; every conforming adapter inherits the guarantee. Adapter packages separately run a sixteen-case back-channel suite against the adapter instance (§7.5).
-- **Swap identity providers without re-architecting the identity layer.** The port carries your privacy posture across providers. Switch from Supabase Auth to an OIDC-brokered provider, and the application's identity-shaped call sites are unchanged. Substrate concerns outside identity (data access, RLS, jobs, admin tooling) remain substrate-coupled by design; upact does not abstract data access.
-- **A ready answer for compliance, legal, and regulator questions about user data.** When a third party asks "what does your application know about users?", the conformance statement documents what the adapter returns. It narrows but does not replace an application-level audit, since application code remains free to import substrate libraries directly per `SPEC.md` §7.5.
-
-## Limits
-
-upact closes the identity boundary architecturally. Application-level misuse of the substrate is not closed:
-
-- An application that ignores the port and calls the substrate library directly (e.g. `supabase.auth.getUser()`) gets back whatever the substrate exposes, including email and other fields the port would have stripped. upact's binding holds only for code that consumes `Upactor` values from the port.
-- The application's freedom to import substrate libraries is preserved (§7.5). That coupling is transparent (visible in `package.json` and reviewable in code), but the port does not block it.
-- Authorization (admin, moderator, operator) is out of scope (§3.1). upact does not provide a permissions model.
-
-The discipline that makes the binding stick: treat substrate-library imports as a marked, audited boundary, only allowed in the substrate seam (the adapter, the auth callback handler), forbidden in service code. A future v0.2 conformance test suite will mechanise this; today it is convention. See `SECURITY.md` for the full scope.
-
-## Usage
-
-```typescript
-import type { IdentityPort } from '@prefig/upact';
-import { SubstrateUnavailableError } from '@prefig/upact';
-
-// authenticate returns Session | AuthError; discriminate on 'code':
-const result = await port.authenticate({ kind: 'password', email, password });
-if ('code' in result) {
-  switch (result.code) {
-    case 'credential_rejected': /* wrong password */ break;
-    case 'rate_limited':        /* back off */ break;
-    default:                    /* substrate_unavailable, auth_failed */ break;
-  }
-  return;
-}
-// result is an opaque Session
-
-// currentUpactor returns null when logged out; throws SubstrateUnavailableError when the substrate is unreachable:
-try {
-  const actor = await port.currentUpactor(request);
-  if (!actor) { /* not logged in */ return; }
-  if (actor.capabilities.has('email')) { /* capability gated */ }
-} catch (err) {
-  if (err instanceof SubstrateUnavailableError) { /* show maintenance page */ }
+```ts
+interface IdentityPort {
+  authenticate(credential: unknown): Promise<Session | AuthError>;
+  currentUpactor(request: Request): Promise<Upactor | null>;
+  invalidate(session: Session): Promise<void>;
+  issueRenewal(identity: Upactor, evidence: unknown): Promise<Upactor | null>;
 }
 ```
 
-`authenticate` communicates auth failures as return values (`AuthError`); it never throws for wrong passwords or rate limits. `currentUpactor` signals substrate outages by throwing `SubstrateUnavailableError` (spec: a provider MAY throw a typed error, §6.2); the shipped adapters all do. It never returns an error value. The asymmetry is deliberate: auth failures are expected control-flow; substrate outages are exceptional conditions.
+`authenticate` takes a credential in whatever shape the adapter accepts and returns either an opaque `Session` or an `AuthError` value (not a throw). `AuthError` is `{ code, message }`, where `code` is one of six portable codes (`credential_invalid`, `credential_rejected`, `substrate_unavailable`, `identity_unavailable`, `rate_limited`, `auth_failed`); substrate detail stays in `message`. `currentUpactor` answers "who is on this request", with `null` meaning "nobody signed in". A substrate outage is a different condition, so adapters may throw `SubstrateUnavailableError` instead of returning `null`; catch it if you want an outage banner, or let it hit your framework's error boundary.
 
-## Adapters
+## What it looks like in an app
 
-| Package | Substrate | Camp | Status |
-|---|---|---|---|
-| `@prefig/upact-supabase` | Supabase Auth | Enforcement | v0.1.1 shipped |
-| `@prefig/upact-simplex` | SimpleX Chat daemon | Pre-conforming | v0.1.1 shipped |
-| `@prefig/upact-oidc` | Any OIDC-compliant IDP (Dex, Authentik, Keycloak, ZITADEL) | Enforcement | v0.1.1 shipped |
-| `@prefig/upact-mastodon` | Mastodon REST API (any user-chosen instance) | Enforcement | v0.1.1 shipped |
-| `@prefig/upact-ember` | ember presence credentials (offline verifier) | Pre-conforming | v0.1.1 shipped |
-| `@prefig/upact-eudi` | OpenID4VP 1.0 relying party (EUDI-profile wallets; ecosystem in pilot until Dec 2026) | Enforcement | v0.1.1 shipped |
-| `@prefig/upact-atproto` | ATProto / Bluesky (DID-based OAuth) | Enforcement | v0.1.1 shipped |
+```ts
+import type { AuthError, IdentityPort } from '@prefig/upact';
 
-## Adopters
+async function signIn(port: IdentityPort, email: string, password: string) {
+  const result = await port.authenticate({ kind: 'password', email, password });
+  if (typeof result === 'object' && result !== null && 'code' in result) {
+    const err = result as AuthError;
+    return err.code === 'credential_rejected' ? 'Wrong email or password.' : 'Sign-in failed.';
+  }
+  return null; // success: result is an opaque Session
+}
 
-| Application | Substrate | Notes |
-|---|---|---|
-| [dyad.berlin](https://dyad.berlin) | `@prefig/upact-supabase` | Reference adopter; database layer substrate-agnostic, application routes return `Upactor` |
+// Later, in a request handler:
+const upactor = await port.currentUpactor(request);
+if (upactor?.capabilities.has('email')) {
+  // show the "change email" UI; gate on capability, not provider type
+}
+```
 
-If your application uses upact, open a PR to add it here.
+Wiring with the Supabase adapter is one call in your server hook:
 
-## In this repo
+```ts
+import { createSupabaseAdapter } from '@prefig/upact-supabase';
+const identity = createSupabaseAdapter(supabaseServerClient); // returns IdentityPort
+```
 
-- `SPEC.md`: normative specification, v0.1.
-- `src/types.ts`: reference TypeScript types (`Upactor`, `IdentityPort`, `AuthError`, `Capability`, `Session`).
-- `src/runtime.ts`: small runtime kernel. Exports `createSession`, the canonical factory that produces opaque `Session` values per SPEC.md §7.4. Adapter authors should use it rather than maintain their own opaque-wrapper class; the opacity guarantee is centralised here, audited once.
-- `docs/adapter-shapes.md`: type-only sketches of the shipped adapters.
-- `docs/authoring-an-adapter.md`: the path from "my substrate isn't covered" to a published adapter.
-- `docs/cross-adapter-findings.md`: cross-substrate observations that shaped the spec.
-- `docs/identity-port-pattern.md`: an introduction to the pattern; workshop pre-reading.
-- `docs/workshop-audit-worksheet.md` and `docs/worked-example-dyad-audit.md`: the identity audit, blank and worked.
-- `examples/sveltekit-supabase/`: minimal SvelteKit + Supabase integration showing the three key wiring points: hook, type augmentation, and capability-gated page load.
-- `CONFORMANCE.md`: conformance statement template with filled-in examples.
-- `CHANGELOG.md`: per-version change record.
+There is a complete SvelteKit example under `examples/sveltekit-supabase`, and `@prefig/upact-oidc` exports `createOidcAdapter` with the same shape.
 
-## Status
+## Sessions are opaque, at runtime too
 
-v0.1.3. Seven adapters shipped (see the table above). Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
+`Session` is a branded type you cannot construct or read in application code, and the runtime backs that up. A session made by `createSession` is a frozen object whose substrate value lives in a module-private WeakMap. `JSON.stringify(session)` returns `"[upact:session]"` (also when nested in a larger object). `Object.keys` gives `[]`, `Reflect.ownKeys` gives only `['toJSON']`, property reads return `undefined`, and `util.inspect` and `structuredClone` leak nothing. So a session accidentally logged, serialised into a response, or posted across a worker boundary carries no tokens. The only thing an app can do with a `Session` is hand it back to the port (for example to `invalidate`).
 
-Issues welcome at [github.com/prefig/upact/issues](https://github.com/prefig/upact/issues). At v1.0 the core capability vocabulary (§5.1) and MUST clauses (§7) move to a working group of ≥3 conforming-adapter authors (see `SPEC.md` §11).
+The escape hatch is `_unwrapSession`, exported only from the `@prefig/upact/internal` subpath. Adapter packages import it to recover the substrate value (say, to call the substrate's sign-out API). The `/internal` import path is deliberate: it marks code that crosses the opacity boundary. Application code must not import it. It is also process-local; unwrapping a session after a restart, or a clone of one, yields `undefined`.
 
-## Commit conventions
+## What it is not
 
-Commits with substantive AI involvement carry an `AI-Involvement: <tier>` trailer recording the character of involvement (`autonomous` / `authored` / `collaborative` / `assisted` / `commit-message-only`), so readers can calibrate the provenance of normative content. The convention is most important on `SPEC.md`, `src/types.ts`, and capability-vocabulary changes.
+- Not authorisation. There are no roles, permissions, or policy anywhere in the types; `capabilities` describes the provider, not the user's rights. What a signed-in person may do is your app's problem.
+- Not a user database. There is no profile read/write, no user listing, no admin surface.
+- Not a way to reach users. No email or phone comes through, and `display_hint` is explicitly not a contact identifier.
 
-upact does not use `Co-Authored-By:` for AI authorship. `Co-Authored-By:` claims human co-authorship; `AI-Involvement` records the character of involvement instead.
+`PresentationRequest` and `Presentation` support a credential-presentation flow: a verifier issues a request (nonce, audience, optional scopes) and the holder answers with a presentation carrying an opaque `vpToken` that echoes the nonce. The fields are named to map onto OpenID4VP (`nonce`, `client_id`, `vp_token`) so a Digital Credentials API adapter stays a thin shim. Ordinary password or OIDC apps can ignore both types.
 
-## Licence
+## Install
 
-Dual-licensed:
+```sh
+npm install @prefig/upact @prefig/upact-supabase   # or @prefig/upact-oidc
+```
 
-- **`SPEC.md`, `docs/`, this README, and other prose**: CC BY 4.0 (see `LICENSE`).
-- **`src/` (TypeScript types and runtime kernel)**: Apache-2.0 (see `LICENSE-CODE`).
-
-Each `src/*.ts` file carries an `SPDX-License-Identifier: Apache-2.0` header. The split follows the SPDX project's own precedent (spec text under CC BY, tooling under Apache-2.0): spec text is meant to be cited and forked under CC; runtime code is software under a conventional permissive licence with a patent grant. Note that CC BY 4.0 grants no patent rights; a patent posture for the spec text is an open item ahead of the §11 working-group handoff at v1.0.
+Two entry points: `@prefig/upact` (all types, `createSession`, `SubstrateUnavailableError`) for apps and adapters, and `@prefig/upact/internal` (`_unwrapSession`) for adapters only. ESM, Node 18 or later, no runtime dependencies.
