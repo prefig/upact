@@ -37,11 +37,11 @@ Note: authorization roles (admin, moderator, operator) MUST NOT appear here. The
 
 ## Session opacity
 
-This adapter uses `createSession` from `@prefig/upact` for Session construction.
+This adapter uses `createSessionBox` from `@prefig/upact/internal` for Session construction (one box per adapter instance).
 
 OR
 
-This adapter does not use `createSession`. The adapter's Session implementation passes a reflection suite equivalent to the runtime kernel's (`@prefig/upact` `tests/runtime.test.ts`): JSON.stringify, Object.keys, Object.getOwnPropertyNames, Reflect.ownKeys, Object.getOwnPropertySymbols, for-in, structuredClone, util.inspect, direct property access, frozen-state immutability, and the `_unwrapSession` escape hatch.
+This adapter does not use `createSessionBox`. The adapter's Session implementation passes a reflection suite equivalent to the runtime kernel's (`@prefig/upact` `tests/runtime.test.ts`): JSON.stringify, Object.keys, Object.getOwnPropertyNames, Reflect.ownKeys, Object.getOwnPropertySymbols, for-in, structuredClone, util.inspect, direct property access, frozen-state immutability, cross-box opacity, and the total-unseal contract.
 
 ## Adapter back-channel closure
 
@@ -62,9 +62,9 @@ This adapter passes a sixteen-case back-channel reflection test (`tests/back-cha
 
 # Conformance: @prefig/upact-supabase
 
-**Spec version:** upact v0.1
-**Package version:** 0.1.0
-**Date:** 2026-05-01
+**Spec version:** upact v0.2
+**Package version:** 0.2.0
+**Date:** 2026-08-31
 
 ## Substrate
 
@@ -97,7 +97,7 @@ Note: Supabase conflates "user not found" with "wrong password" as user-enumerat
 
 ## Session opacity
 
-This adapter uses `createSession` from `@prefig/upact` for Session construction.
+This adapter uses `createSessionBox` from `@prefig/upact/internal` for Session construction (one box per adapter instance).
 
 ## Adapter back-channel closure
 
@@ -117,9 +117,9 @@ None.
 
 # Conformance: @prefig/upact-simplex
 
-**Spec version:** upact v0.1
-**Package version:** 0.1.0
-**Date:** 2026-05-01
+**Spec version:** upact v0.2
+**Package version:** 0.2.0
+**Date:** 2026-08-31
 
 ## Substrate
 
@@ -149,7 +149,7 @@ The SimpleX substrate affords messaging (`sendMessage`, `receiveMessage`) and pe
 
 ## Session opacity
 
-This adapter uses `createSession` from `@prefig/upact` for Session construction.
+This adapter uses `createSessionBox` from `@prefig/upact/internal` for Session construction (one box per adapter instance).
 
 ## Adapter back-channel closure
 

@@ -1,6 +1,6 @@
 # upact — Identity Port Specification
 
-**Version:** 0.1
+**Version:** 0.2
 **Status:** Working draft. Public release. Breaking changes between v0.x revisions are permitted; v1.0 marks the first stable version.
 **License:** CC BY 4.0
 
@@ -23,7 +23,7 @@ This is the dual of selective-disclosure self-sovereign identity. SSI puts discl
 - **Application** — software that consumes identities to serve users.
 - **Provider** (also: *adapter*) — software that issues, attests, renews, and invalidates identities. Implements the `IdentityPort` interface (§6).
 - **Substrate** — the implementation technology a provider is built on (database, OIDC server, IDP-brokered upstream, peer-to-peer messaging, etc.).
-- **Upactor** — a `Upactor` value as defined in §4. The application's view of "who is this." (Renamed from `UserIdentity` in v0.1; deprecated alias `UserIdentity` remains for v0.1.x compatibility.)
+- **Upactor** — a `Upactor` value as defined in §4. The application's view of "who is this." (Renamed from `UserIdentity` in v0.1; the deprecated alias was removed in v0.2.)
 - **Session** — provider-defined credential exchange artefact; opaque to the application.
 - **Capability** — a self-described provider feature (§5).
 
@@ -231,7 +231,9 @@ The `id` field MUST NOT be derivable from any user-supplied identifier (email, p
 
 The `Session` value MUST be opaque to the application. Applications MUST NOT decompose, decode, or extract claims from a `Session` directly; the only valid use is to pass it back to the port (e.g. for `invalidate`). Substrate-shaped session structures (JWTs with claims, cookies with metadata, captured tokensets) are an implementation detail of the provider.
 
-**Implementations MAY use `createSession` from `@prefig/upact`**, which provides the normative opacity guarantee tested in `tests/runtime.test.ts` across nine reflection vectors — `JSON.stringify`, `Object.keys`, `Object.getOwnPropertyNames`, `Reflect.ownKeys`, `Object.getOwnPropertySymbols`, for-in iteration, `structuredClone`, `util.inspect`, direct property access — plus frozen-state immutability and the controlled escape hatch via `_unwrapSession` from `@prefig/upact/internal`. Implementations that do not use `createSession` MUST pass an equivalent suite to claim conformance.
+The sealing capability is per adapter instance. A provider creates a session box (`createSessionBox` from `@prefig/upact/internal`) in its factory and holds it in closure scope; `seal` wraps a substrate value into an opaque `Session`, and `unseal` recovers it only for sessions that box sealed. A session is meaningful only to the adapter instance that created it: any other unseal — a different instance, a different adapter, a clone, a fabricated object — returns `undefined`. `unseal` MUST NOT throw for any input, and `seal(undefined)` MUST be rejected, so `undefined` from `unseal` means exactly "not sealed by this box". `unseal` MUST return the same reference `seal` stored. A provider whose substrate value may be `null` MUST distinguish foreign sessions with `=== undefined`, never truthiness.
+
+**Implementations MAY use `createSessionBox`**, which provides the normative opacity guarantee tested in `tests/runtime.test.ts` across nine reflection vectors — `JSON.stringify`, `Object.keys`, `Object.getOwnPropertyNames`, `Reflect.ownKeys`, `Object.getOwnPropertySymbols`, for-in iteration, `structuredClone`, `util.inspect`, direct property access — plus frozen-state immutability, cross-box opacity, and the total-`unseal` contract. Implementations that do not use `createSessionBox` MUST pass an equivalent suite to claim conformance.
 
 The runtime kernel is normative because the privacy minima at the type level are insufficient on their own — TypeScript's structural typing cannot prevent runtime reflection from leaking substrate state. The kernel turns the type-level guarantee into a runtime guarantee, centrally audited.
 
@@ -242,7 +244,7 @@ Conforming adapter packages MUST hold substrate state out of public reflection. 
 - Substrate clients (e.g. `SupabaseClient`, `SimpleXClient`, OIDC token holders) MUST be held in closure-captured scope or ES2022 `#private` fields, never on enumerable instance properties. `(adapter as any).client` MUST be `undefined`.
 - Adapter packages MUST restrict their `package.json` `exports` field to documented entry points only. Deep imports of internal modules MUST be unreachable through normal module resolution.
 - Adapter packages MUST NOT export helpers that return substrate-typed values bypassing the port. Substrate-side operations live inside the adapter and are reached through documented helper paths (out-of-port) or not at all.
-- Adapters MUST use upact's runtime primitives (`createSession`, `_unwrapSession`, `SubstrateUnavailableError`) rather than rolling alternative implementations.
+- Adapters MUST hold the unseal half of their session box in closure scope and MUST NOT export it, store it on the adapter instance, or otherwise make it reachable by application code. Adapters that use upact's runtime primitives satisfy this via `createSessionBox` and `SubstrateUnavailableError`; per §7.4, an adapter MAY substitute an equivalent audited implementation instead of the provided kernel.
 
 The application's freedom to import substrate libraries directly is preserved — that is a transparent coupling, visible in `package.json` and reviewable in code. What §7.5 closes is the asymmetric case where an application uses upact's surface AND quietly cheats the contract through adapter-internal access paths. The conformance bar at §7.5 keeps the binding genuine.
 
@@ -304,6 +306,7 @@ v0.1 was scoped to what shipped adapters need. Items below were proposed but did
 | ~~**D6 — `provenance` field on Upactor**~~ | **Closed v0.1.1.** `provenance: { substrate, instance? }` added to §4.5. | OIDC adapter needs cross-IDP discrimination at the port level. |
 | ~~**F3 — Network-legible vs port-opaque identifier**~~ | **Closed v0.1.1.** The OIDC adapter holds `iss + sub` in closure for substrate-side calls; the port `id` is a hash-derived opaque string. The pattern is documented in §7.3 and the adapter's conformance statement. | Phase C adapter ships and names the pattern. |
 | ~~**F6 — Lifecycle modelling has multiple shapes**~~ | **Closed v0.1.1.** Two patterns documented in §8: explicit-TTL and no-intrinsic-TTL. Per-encounter-rotation deferred (D7). | `lifecycle` field surfaces two real patterns shipped by OIDC adapter. |
+| ~~**F8 — Global unwrap escape hatch**~~ | **Closed v0.2.0.** The process-global `_unwrapSession` (any importer of `@prefig/upact/internal` could unseal any session) is replaced by per-adapter-instance session boxes (§7.4). Second iteration of the May 2026 hardening that replaced publicly callable `_unwrap()` methods with the WeakMap kernel. | `/internal` was convention-only protection; the review threat ranking placed the unwrap escape hatch highest-impact. |
 | ~~**G1 — OIDC scope discipline**~~ | **Closed v0.1.1.** `@prefig/upact-oidc` ships `validateScopes` runtime guard and documents the scope allow-list in its conformance statement. | Phase C adapter ships with runtime enforcement. |
 | **Convene + Reticulum substrate sketches in `docs/adapter-shapes.md`** | Speculative entries removed | No shipped adapter, no concrete consumer. Sketches return alongside their adapter. |
 
@@ -339,4 +342,4 @@ The application code does not change across these. The deployment chooses the pr
 
 ---
 
-*Document version: 0.1.3. AI-co-authored under disclosure (see authorship note above). Decision lineage is in `git log` and the §12 register.*
+*Document version: 0.2.0. AI-co-authored under disclosure (see authorship note above). Decision lineage is in `git log` and the §12 register.*

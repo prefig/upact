@@ -6,6 +6,21 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-08-31
+
+### Changed (breaking)
+
+- **Per-adapter session boxes replace the global session API.** `createSessionBox(): { seal, unseal }` is exported from `@prefig/upact/internal`; each adapter creates its own box in its factory closure and can unseal only sessions it sealed. `createSession` (main entry) and `_unwrapSession` (`./internal`) are removed. `unseal` is total: it returns the sealed reference for this box's sessions and `undefined` for everything else, and never throws; `seal(undefined)` throws so `undefined` unambiguously means "not sealed by this box"; `seal(null)` round-trips (adapters that may seal `null` check `=== undefined`, never truthiness). SPEC §7.4/§7.5 rewritten accordingly; §7.5 no longer names concrete symbols as a MUST, resolving the earlier MAY/MUST tension with §7.4.
+- Hardening note: under the global WeakMap, any importer of `@prefig/upact/internal` could unseal any session in the process, including sessions another adapter sealed (e.g. `respondToWallet` unwrapping a Supabase session as EUDI session data). Per-instance boxes close both the application escape hatch and the cross-adapter confusion. A session is now meaningful only to the adapter instance that created it.
+
+### Removed
+
+- `UserIdentity` deprecated alias (announced for v0.2 at its deprecation).
+
+### Fixed
+
+- `jsr.json` synced to the package version (was stale at 0.1.0).
+
 ### Fixed (documentation accuracy pass, 2026-08-28)
 
 - Corrected the runtime-kernel test description: nine reflection vectors plus frozen-state immutability and the `_unwrapSession` escape hatch (`tests/runtime.test.ts`); the sixteen-case count belongs to the adapter back-channel suite. Affected `README.md`, `SPEC.md` §7.4, `CONFORMANCE.md`.
