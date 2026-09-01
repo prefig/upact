@@ -57,9 +57,9 @@ There is a complete SvelteKit example under `examples/sveltekit-supabase`, and `
 
 ## Sessions are opaque, at runtime too
 
-`Session` is a branded type you cannot construct or read in application code, and the runtime backs that up. A sealed session is a frozen object whose substrate value lives in a private WeakMap: `JSON.stringify` gives `"[upact:session]"`, `Object.keys` gives `[]`, property reads return `undefined`, and `structuredClone` leaks nothing. A session accidentally logged or serialised into a response carries no tokens. The only thing an app can do with a `Session` is hand it back to the port (for example to `invalidate`).
+Application code cannot construct a `Session` or read what is inside one. The type system says so, and the runtime agrees: a session is a frozen empty object, and the substrate value sits in a private WeakMap keyed by it. `JSON.stringify` prints `"[upact:session]"`, `Object.keys` returns `[]`, property reads return `undefined`, and `structuredClone` copies none of it. If a session ends up in a log or a response body, no tokens go with it. An app can do exactly one thing with a session: pass it back to the port.
 
-The adapter that sealed a session can open it again: it creates a seal/unseal pair in its factory (`createSessionBox`, exported from `@prefig/upact/internal` so it stays out of application imports) and holds it in closure. Importing the factory gains an application nothing — a fresh box can unseal no existing session. A session is meaningful only to the adapter instance that created it.
+Adapters recover the substrate value through `createSessionBox` (exported from `@prefig/upact/internal`). The factory returns a seal/unseal pair that the adapter keeps in its closure. Importing the factory does not help an application, because a new box cannot unseal sessions it did not seal. Only the adapter instance that sealed a session can open it.
 
 ## What it is not
 
