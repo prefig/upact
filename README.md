@@ -68,7 +68,7 @@ Because of this:
 
 If a session is put into a log or a response body, no tokens will be included. An application can only do one thing with a session: pass it back to the port.
 
-Adapters get the real data using `createSessionBox` (from `@prefig/upact/internal`). This function gives the adapter a pair of "seal" and "unseal" functions. The adapter keeps these in its private scope. Importing this factory does not help an application because a new box cannot open sessions it did not seal. Only the specific adapter instance that sealed a session can open it.
+Getting the data back out is adapter code, not part of the app-facing API: only the adapter instance that sealed a session can open it. See `docs/authoring-an-adapter.md`.
 
 ## What it is not
 
