@@ -55,11 +55,20 @@ const identity = createSupabaseAdapter(supabaseServerClient); // returns Identit
 
 There is a complete SvelteKit example under `examples/sveltekit-supabase`, and `@prefig/upact-oidc` exports `createOidcAdapter` with the same shape.
 
-## Sessions are opaque, at runtime too
+## Sessions are opaque at runtime
 
-Application code cannot construct a `Session` or read what is inside one. The type system says so, and the runtime agrees: a session is a frozen empty object, and the substrate value sits in a private WeakMap keyed by it. `JSON.stringify` prints `"[upact:session]"`, `Object.keys` returns `[]`, property reads return `undefined`, and `structuredClone` copies none of it. If a session ends up in a log or a response body, no tokens go with it. An app can do exactly one thing with a session: pass it back to the port.
+Application code cannot create or read the contents of a `Session`. The type system and the runtime both block this. A session is an empty, frozen object. The actual data is stored in a private `WeakMap` using that object as a key.
 
-Adapters recover the substrate value through `createSessionBox` (exported from `@prefig/upact/internal`). The factory returns a seal/unseal pair that the adapter keeps in its closure. Importing the factory does not help an application, because a new box cannot unseal sessions it did not seal. Only the adapter instance that sealed a session can open it.
+Because of this:
+
+* `JSON.stringify` shows `"[upact:session]"`.
+* `Object.keys` returns an empty array `[]`.
+* Reading properties returns `undefined`.
+* `structuredClone` does not copy any data.
+
+If a session is put into a log or a response body, no tokens will be included. An application can only do one thing with a session: pass it back to the port.
+
+Adapters get the real data using `createSessionBox` (from `@prefig/upact/internal`). This function gives the adapter a pair of "seal" and "unseal" functions. The adapter keeps these in its private scope. Importing this factory does not help an application because a new box cannot open sessions it did not seal. Only the specific adapter instance that sealed a session can open it.
 
 ## What it is not
 
@@ -68,6 +77,23 @@ Adapters recover the substrate value through `createSessionBox` (exported from `
 - Not a way to reach users. No email or phone comes through, and `display_hint` is explicitly not a contact identifier.
 
 `PresentationRequest` and `Presentation` support a credential-presentation flow: a verifier issues a request (nonce, audience, optional scopes) and the holder answers with a presentation carrying an opaque `vpToken` that echoes the nonce. The fields are named to map onto OpenID4VP (`nonce`, `client_id`, `vp_token`) so a Digital Credentials API adapter stays a thin shim. Ordinary password or OIDC apps can ignore both types.
+
+## Adapters
+
+Eight adapters implement the port today, all at 0.2.0 and all in the [prefig org](https://github.com/prefig):
+
+| Package | Substrate |
+|---|---|
+| [`@prefig/upact-supabase`](https://github.com/prefig/upact-supabase) | Supabase Auth |
+| [`@prefig/upact-oidc`](https://github.com/prefig/upact-oidc) | any OpenID Connect provider |
+| [`@prefig/upact-mastodon`](https://github.com/prefig/upact-mastodon) | Mastodon (per-login instance discovery) |
+| [`@prefig/upact-atproto`](https://github.com/prefig/upact-atproto) | ATProto (Bluesky) |
+| [`@prefig/upact-eudi`](https://github.com/prefig/upact-eudi) | EUDI wallet, as OpenID4VP relying party |
+| [`@prefig/upact-promise`](https://github.com/prefig/upact-promise) | Promise Authentication |
+| [`@prefig/upact-simplex`](https://github.com/prefig/upact-simplex) | SimpleX Chat |
+| [`@prefig/upact-ember`](https://github.com/prefig/upact-ember) | ember (in-person represence) |
+
+Writing your own is the intended path when your substrate is not listed; see `docs/authoring-an-adapter.md`.
 
 ## Install
 
