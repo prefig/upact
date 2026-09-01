@@ -3,9 +3,9 @@
  * Public entry point for `@prefig/upact`.
  *
  * Re-exports all spec types from `./types.js`. Application code imports
- * from this entry. The adapter-internal session box factory
- * (`createSessionBox`) is exported from `./internal.js` and reachable only
- * via the `@prefig/upact/internal` subpath — see SPEC.md §7.4 and
+ * from this entry. The adapter-internal session constructor
+ * (`createOpaqueSession`) is exported from `./internal.js` and reachable
+ * only via the `@prefig/upact/internal` subpath — see SPEC.md §7.4 and
  * `docs/adapter-shapes.md`.
  */
 

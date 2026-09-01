@@ -6,6 +6,17 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-01
+
+### Changed (breaking)
+
+- **The opaque session constructor replaces the session box.** `createOpaqueSession(): Session` is exported from `@prefig/upact/internal`; it constructs the hardened opaque marker (frozen, null-prototype, non-enumerable `toJSON` returning `"[upact:session]"`) and stores nothing. `createSessionBox` and the `SessionBox` type are removed. The opacity hardening stays centralised and audited in core; the value-to-session association was never core's business, so it moves to the adapter: an adapter that recovers state holds its own `WeakMap<Session, T>` in factory closure, sets it where it mints the session, and reads it at recovery sites. `WeakMap.get` returns `undefined` for foreign, fabricated, or cloned sessions, so cross-instance semantics are unchanged — a session remains meaningful only to the adapter instance that created it. With no core seal, the `seal(undefined)`/`seal(null)` sentinel rules dissolve. SPEC §7.4/§7.5 rewritten; §7.4 gains the request-scope clause (`Session` is request-scoped; `invalidate` MUST work from request-derived state, session-keyed lookup is a same-request optimisation only).
+- Migration: adapters that never recover state replace `box.seal(value)` with `createOpaqueSession()` and drop the box (one-line diff). Recovering adapters add `const sessions = new WeakMap<Session, T>()` in the factory closure, `sessions.set(session, value)` at the seal site, and `sessions.get(session)` at recovery sites, checking `=== undefined` when stored values may be `null`.
+
+### Release order (0.3.0 train)
+
+Same rule as the 0.2.0 train: publish core `@prefig/upact` 0.3.0 first (npm under a `next` dist-tag if staging; JSR stages with `0.3.0-rc.N` — JSR cannot unpublish), then the eight adapters at 0.3.0 with peer `^0.3.0`, then promote dist-tags, then a clean `npm install` smoke test of one adapter from the registry. Bump the whole train together.
+
 ## [0.2.0] — 2026-08-31
 
 ### Changed (breaking)

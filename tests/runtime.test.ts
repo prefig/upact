@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Runtime opacity tests for `createSessionBox`.
+ * Runtime opacity tests for `createOpaqueSession`.
  *
- * These tests verify SPEC.md §7.4 holds at runtime: a Session value
- * sealed by a box cannot be decomposed by any common inspection vector —
- * JSON.stringify, Object.keys, Object.getOwnPropertyNames, Reflect.ownKeys,
- * structuredClone, util.inspect, console.log, or direct property access —
- * and can be unsealed only by the box that sealed it. `createSessionBox`
- * is reachable only via `@prefig/upact/internal`, which is the contract
- * signal that the caller is adapter code.
+ * These tests verify SPEC.md §7.4 holds at runtime: a Session value is an
+ * empty, frozen, null-prototype marker that cannot be decomposed by any
+ * common inspection vector — JSON.stringify, Object.keys,
+ * Object.getOwnPropertyNames, Reflect.ownKeys, structuredClone,
+ * util.inspect, console.log, or direct property access. The constructor
+ * stores nothing; an adapter that recovers substrate state keys its own
+ * closure-held WeakMap on the marker, and the WeakMap tests below document
+ * that pattern (a foreign session reads as `undefined`).
+ * `createOpaqueSession` is reachable only via `@prefig/upact/internal`,
+ * which is the contract signal that the caller is adapter code.
  */
 
 import { describe, it, expect } from 'vitest';
 import util from 'node:util';
-import { createSessionBox } from '../src/internal.js';
+import { createOpaqueSession } from '../src/internal.js';
+import type { Session } from '../src/types.js';
 
 interface Substrate {
 	access_token: string;
@@ -29,16 +33,16 @@ function fixture(): Substrate {
 	};
 }
 
-describe('seal — JSON.stringify opacity', () => {
+describe('createOpaqueSession — JSON.stringify opacity', () => {
 	it('serialises to the opaque token literal', () => {
-		const box = createSessionBox<Substrate>();
-		const session = box.seal(fixture());
+		const session = createOpaqueSession();
 		expect(JSON.stringify(session)).toBe('"[upact:session]"');
 	});
 
-	it('does not leak substrate values via JSON.stringify', () => {
-		const box = createSessionBox<Substrate>();
-		const session = box.seal(fixture());
+	it('does not leak adapter-associated values via JSON.stringify', () => {
+		const sessions = new WeakMap<Session, Substrate>();
+		const session = createOpaqueSession();
+		sessions.set(session, fixture());
 		const json = JSON.stringify(session);
 		expect(json).not.toContain('eyJexampleJWT');
 		expect(json).not.toContain('rt_secret_value');
@@ -46,9 +50,10 @@ describe('seal — JSON.stringify opacity', () => {
 		expect(json).not.toContain('u-1');
 	});
 
-	it('does not leak substrate values when nested in a larger object', () => {
-		const box = createSessionBox<Substrate>();
-		const session = box.seal(fixture());
+	it('does not leak adapter-associated values when nested in a larger object', () => {
+		const sessions = new WeakMap<Session, Substrate>();
+		const session = createOpaqueSession();
+		sessions.set(session, fixture());
 		const wrapper = { kind: 'session-holder', session };
 		const json = JSON.stringify(wrapper);
 		expect(json).toContain('session-holder');
@@ -57,57 +62,53 @@ describe('seal — JSON.stringify opacity', () => {
 	});
 });
 
-describe('seal — property enumeration opacity', () => {
-	it('Object.keys returns no substrate fields', () => {
-		const box = createSessionBox<Substrate>();
-		expect(Object.keys(box.seal(fixture()))).toEqual([]);
+describe('createOpaqueSession — property enumeration opacity', () => {
+	it('Object.keys returns no fields', () => {
+		expect(Object.keys(createOpaqueSession())).toEqual([]);
 	});
 
-	it('Object.getOwnPropertyNames returns no substrate fields', () => {
-		const box = createSessionBox<Substrate>();
-		expect(Object.getOwnPropertyNames(box.seal(fixture()))).toEqual(['toJSON']);
+	it('Object.getOwnPropertyNames returns only toJSON', () => {
+		expect(Object.getOwnPropertyNames(createOpaqueSession())).toEqual(['toJSON']);
 	});
 
-	it('Reflect.ownKeys returns no substrate fields', () => {
-		const box = createSessionBox<Substrate>();
-		expect(Reflect.ownKeys(box.seal(fixture()))).toEqual(['toJSON']);
+	it('Reflect.ownKeys returns only toJSON', () => {
+		expect(Reflect.ownKeys(createOpaqueSession())).toEqual(['toJSON']);
 	});
 
-	it('Object.getOwnPropertySymbols returns no substrate fields', () => {
-		const box = createSessionBox<Substrate>();
-		expect(Object.getOwnPropertySymbols(box.seal(fixture()))).toEqual([]);
+	it('Object.getOwnPropertySymbols returns nothing', () => {
+		expect(Object.getOwnPropertySymbols(createOpaqueSession())).toEqual([]);
 	});
 
 	it('for-in iteration yields nothing', () => {
-		const box = createSessionBox<Substrate>();
-		const session = box.seal(fixture());
+		const session = createOpaqueSession();
 		const keys: string[] = [];
 		for (const key in session) keys.push(key);
 		expect(keys).toEqual([]);
 	});
 });
 
-describe('seal — direct property access opacity', () => {
+describe('createOpaqueSession — direct property access opacity', () => {
 	it('property reads return undefined', () => {
-		const box = createSessionBox<Substrate>();
-		const session = box.seal(fixture()) as unknown as Record<string, unknown>;
+		const session = createOpaqueSession() as unknown as Record<string, unknown>;
 		expect(session['access_token']).toBeUndefined();
 		expect(session['refresh_token']).toBeUndefined();
 		expect(session['user']).toBeUndefined();
 	});
 });
 
-describe('seal — structural cloning and inspection opacity', () => {
-	it('structuredClone does not preserve the substrate value', () => {
-		const box = createSessionBox<Substrate>();
-		const session = box.seal(fixture());
+describe('createOpaqueSession — structural cloning and inspection opacity', () => {
+	it('structuredClone does not preserve an adapter-held association', () => {
+		const sessions = new WeakMap<Session, Substrate>();
+		const session = createOpaqueSession();
+		sessions.set(session, fixture());
 		const cloned = structuredClone(session) as unknown;
-		expect(box.unseal(cloned as never)).toBeUndefined();
+		expect(sessions.get(cloned as never)).toBeUndefined();
 	});
 
-	it('util.inspect does not leak substrate fields', () => {
-		const box = createSessionBox<Substrate>();
-		const session = box.seal(fixture());
+	it('util.inspect does not leak adapter-associated values', () => {
+		const sessions = new WeakMap<Session, Substrate>();
+		const session = createOpaqueSession();
+		sessions.set(session, fixture());
 		const inspected = util.inspect(session, { depth: null, showHidden: true });
 		expect(inspected).not.toContain('eyJexampleJWT');
 		expect(inspected).not.toContain('rt_secret_value');
@@ -115,18 +116,20 @@ describe('seal — structural cloning and inspection opacity', () => {
 	});
 });
 
-describe('seal — runtime immutability', () => {
+describe('createOpaqueSession — runtime immutability and shape', () => {
 	it('the returned object is frozen', () => {
-		const box = createSessionBox<Substrate>();
-		expect(Object.isFrozen(box.seal(fixture()))).toBe(true);
+		expect(Object.isFrozen(createOpaqueSession())).toBe(true);
+	});
+
+	it('the returned object has a null prototype', () => {
+		expect(Object.getPrototypeOf(createOpaqueSession())).toBeNull();
 	});
 
 	it('attempts to mutate fail silently or throw', () => {
 		'use strict';
-		const box = createSessionBox<Substrate>();
-		const session = box.seal(fixture()) as unknown as Record<string, unknown>;
+		const session = createOpaqueSession() as unknown as Record<string, unknown>;
 		// Frozen objects in strict mode throw on assignment; non-strict silently fails.
-		// Either way, the substrate value is not exposed.
+		// Either way, nothing can be attached to the marker.
 		try {
 			session['access_token'] = 'attacker-injected';
 		} catch {
@@ -136,57 +139,25 @@ describe('seal — runtime immutability', () => {
 	});
 });
 
-describe('unseal — box-held capability', () => {
-	it('returns the substrate value for a session this box sealed', () => {
-		const box = createSessionBox<Substrate>();
+describe('createOpaqueSession — adapter-owned association', () => {
+	it('two calls return distinct objects', () => {
+		expect(createOpaqueSession()).not.toBe(createOpaqueSession());
+	});
+
+	it('works as a WeakMap key and returns the exact stored reference', () => {
+		const sessions = new WeakMap<Session, Substrate>();
 		const substrate = fixture();
-		const session = box.seal(substrate);
-		const recovered = box.unseal(session);
-		expect(recovered).toBe(substrate); // reference equality — same WeakMap entry
+		const session = createOpaqueSession();
+		sessions.set(session, substrate);
+		expect(sessions.get(session)).toBe(substrate); // reference equality — same WeakMap entry
 	});
 
-	it('another box cannot unseal it', () => {
-		const boxA = createSessionBox<Substrate>();
-		const boxB = createSessionBox<Substrate>();
-		const session = boxA.seal(fixture());
-		expect(boxB.unseal(session)).toBeUndefined();
-		expect(boxA.unseal(session)).not.toBeUndefined();
-	});
-
-	it('returns undefined for a non-session input', () => {
-		const box = createSessionBox<Substrate>();
-		const fake = { _opaque: Symbol() } as never;
-		expect(box.unseal(fake)).toBeUndefined();
-	});
-
-	it('returns undefined for a structuredClone of a session', () => {
-		const box = createSessionBox<Substrate>();
-		const session = box.seal(fixture());
-		const cloned = structuredClone(session) as never;
-		expect(box.unseal(cloned)).toBeUndefined();
-	});
-
-	it('never throws for arbitrary inputs', () => {
-		const box = createSessionBox<Substrate>();
-		// Shipped consumers pass fabricated sessions (`{} as Session`); unseal
-		// must be total over anything an application can hand an adapter.
-		expect(box.unseal({} as never)).toBeUndefined();
-		expect(box.unseal(null as never)).toBeUndefined();
-		expect(box.unseal(undefined as never)).toBeUndefined();
-		expect(box.unseal(42 as never)).toBeUndefined();
-		expect(box.unseal('session' as never)).toBeUndefined();
-	});
-});
-
-describe('seal — input contract', () => {
-	it('seal(null) round-trips to null', () => {
-		const box = createSessionBox<null>();
-		const session = box.seal(null);
-		expect(box.unseal(session)).toBeNull();
-	});
-
-	it('seal(undefined) throws', () => {
-		const box = createSessionBox<undefined>();
-		expect(() => box.seal(undefined)).toThrow(TypeError);
+	it('a fresh WeakMap reads a foreign session as undefined', () => {
+		// The adapter pattern: an instance's WeakMap holds only sessions that
+		// instance created. A session from anywhere else — another instance,
+		// another adapter, a clone, a fabrication — reads as undefined.
+		const sessions = new WeakMap<Session, Substrate>();
+		const foreign = createOpaqueSession();
+		expect(sessions.get(foreign)).toBeUndefined();
 	});
 });

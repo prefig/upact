@@ -80,7 +80,7 @@ Getting the data back out is adapter code, not part of the app-facing API: only 
 
 ## Adapters
 
-Eight adapters implement the port today, all at 0.2.0 and all in the [prefig org](https://github.com/prefig):
+Eight adapters implement the port today, all at 0.3.0 and all in the [prefig org](https://github.com/prefig):
 
 | Package | Substrate |
 |---|---|
@@ -101,4 +101,4 @@ Writing your own is the intended path when your substrate is not listed; see `do
 npm install @prefig/upact @prefig/upact-supabase   # or @prefig/upact-oidc
 ```
 
-Two entry points: `@prefig/upact` (all types, `SubstrateUnavailableError`) for apps and adapters, and `@prefig/upact/internal` (`createSessionBox`) for adapters only. ESM, Node 18 or later, no runtime dependencies.
+Two entry points: `@prefig/upact` (all types, `SubstrateUnavailableError`) for apps and adapters, and `@prefig/upact/internal` (`createOpaqueSession`) for adapters only. ESM, Node 18 or later, no runtime dependencies.

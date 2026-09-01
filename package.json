@@ -1,6 +1,6 @@
 {
 	"name": "@prefig/upact",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "Provider-agnostic identity port for TypeScript web apps.",
 	"license": "(CC-BY-4.0 AND Apache-2.0)",
 	"type": "module",

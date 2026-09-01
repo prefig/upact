@@ -3,16 +3,15 @@
  * Adapter-internal entry point.
  *
  * Importing from `@prefig/upact/internal` is a contract signal that the
- * caller is adapter code. Conforming adapter packages call
- * `createSessionBox()` once in their factory and keep the returned box in
- * closure scope; the `unseal` half is the capability the spec's opacity
- * guarantee protects, and it must never leave that closure. Application
- * packages MUST NOT import from this path — the factory alone grants
- * nothing (a fresh box can unseal no existing session), but the import is
- * the greppable boundary marker.
+ * caller is adapter code. Conforming adapter packages obtain every Session
+ * they return from `createOpaqueSession()` and keep any session-to-state
+ * association in a closure-held `WeakMap<Session, T>` that never leaves
+ * the adapter factory. Application packages MUST NOT import from this
+ * path — the constructor alone grants nothing (it returns an empty marker
+ * with no associated state), but the import is the greppable boundary
+ * marker.
  *
  * See SPEC.md §7.4 and §7.5.
  */
 
-export { createSessionBox } from './runtime.js';
-export type { SessionBox } from './runtime.js';
+export { createOpaqueSession } from './runtime.js';

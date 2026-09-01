@@ -37,11 +37,11 @@ Note: authorization roles (admin, moderator, operator) MUST NOT appear here. The
 
 ## Session opacity
 
-This adapter uses `createSessionBox` from `@prefig/upact/internal` for Session construction (one box per adapter instance).
+This adapter uses `createOpaqueSession` from `@prefig/upact/internal` for Session construction, with any session-to-state association held in a closure-scoped WeakMap (one per adapter instance).
 
 OR
 
-This adapter does not use `createSessionBox`. The adapter's Session implementation passes a reflection suite equivalent to the runtime kernel's (`@prefig/upact` `tests/runtime.test.ts`): JSON.stringify, Object.keys, Object.getOwnPropertyNames, Reflect.ownKeys, Object.getOwnPropertySymbols, for-in, structuredClone, util.inspect, direct property access, frozen-state immutability, cross-box opacity, and the total-unseal contract.
+This adapter does not use `createOpaqueSession`. The adapter's Session implementation passes a reflection suite equivalent to the runtime kernel's (`@prefig/upact` `tests/runtime.test.ts`): JSON.stringify, Object.keys, Object.getOwnPropertyNames, Reflect.ownKeys, Object.getOwnPropertySymbols, for-in, structuredClone, util.inspect, direct property access, frozen-state immutability, the null prototype, marker distinctness, and the adapter-owned WeakMap association contract (a foreign session reads as undefined).
 
 ## Adapter back-channel closure
 
@@ -97,7 +97,7 @@ Note: Supabase conflates "user not found" with "wrong password" as user-enumerat
 
 ## Session opacity
 
-This adapter uses `createSessionBox` from `@prefig/upact/internal` for Session construction (one box per adapter instance).
+This adapter uses `createOpaqueSession` from `@prefig/upact/internal` for Session construction, with any session-to-state association held in a closure-scoped WeakMap (one per adapter instance).
 
 ## Adapter back-channel closure
 
@@ -149,7 +149,7 @@ The SimpleX substrate affords messaging (`sendMessage`, `receiveMessage`) and pe
 
 ## Session opacity
 
-This adapter uses `createSessionBox` from `@prefig/upact/internal` for Session construction (one box per adapter instance).
+This adapter uses `createOpaqueSession` from `@prefig/upact/internal` for Session construction, with any session-to-state association held in a closure-scoped WeakMap (one per adapter instance).
 
 ## Adapter back-channel closure
 
