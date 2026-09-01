@@ -10,7 +10,7 @@ Name the package `@prefig/upact-<substrate>` and export a single factory functio
 
 Substrate state lives in the factory closure, never on the returned object. The Supabase adapter's methods call `supabase.auth.*` from closure scope; `(adapter as any).supabase` is `undefined` and `JSON.stringify(adapter)` includes no substrate state. The OIDC adapter keeps tokens in an HMAC-signed cookie rather than on the object at all. Two imports are all an adapter needs from the core: types from `@prefig/upact`, and `createOpaqueSession` from `@prefig/upact/internal` (every `Session` your adapter returns comes from it; step 8).
 
-In `package.json`, follow `upact-supabase/package.json`: ESM (`"type": "module"`), a single `"."` export with `types` and `import` conditions, `"engines": { "node": ">=18" }`, `"sideEffects": false`, and `@prefig/upact` plus your substrate SDK as **peerDependencies** (`"@prefig/upact": "^0.1.0"`), duplicated in `devDependencies` for tests.
+In `package.json`, follow `upact-supabase/package.json`: ESM (`"type": "module"`), a single `"."` export with `types` and `import` conditions, `"engines": { "node": ">=18" }`, `"sideEffects": false`, and `@prefig/upact` plus your substrate SDK as **peerDependencies** (`"@prefig/upact": "^0.3.0"`), duplicated in `devDependencies` for tests.
 
 If your adapter needs out-of-port methods (OAuth redirects, challenge minting), type them as a separate extensions interface and return `IdentityPort & <X>AdapterExtensions`, as `upact-oidc/src/adapter.ts` does with `buildAuthRedirect`/`buildLogoutRedirect`. Port-only consumers stay substrate-agnostic; consumers needing the extras cast locally.
 

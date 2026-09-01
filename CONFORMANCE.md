@@ -62,9 +62,9 @@ This adapter passes a sixteen-case back-channel reflection test (`tests/back-cha
 
 # Conformance: @prefig/upact-supabase
 
-**Spec version:** upact v0.2
-**Package version:** 0.2.0
-**Date:** 2026-08-31
+**Spec version:** upact v0.3
+**Package version:** 0.3.0
+**Date:** 2026-09-01
 
 ## Substrate
 
@@ -117,9 +117,9 @@ None.
 
 # Conformance: @prefig/upact-simplex
 
-**Spec version:** upact v0.2
-**Package version:** 0.2.0
-**Date:** 2026-08-31
+**Spec version:** upact v0.3
+**Package version:** 0.3.0
+**Date:** 2026-09-01
 
 ## Substrate
 
